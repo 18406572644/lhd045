@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Card, Modal, Textarea, ActionIcon, Tooltip, Badge } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { BookOpen, Edit, Trash2, Download, Upload, Plus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, Edit, Trash2, Download, Upload, Plus, Clock, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
@@ -11,6 +12,7 @@ import { formatDate, downloadFile, readFileContent } from '../utils/helpers';
 import type { ExperimentRecord } from '../types';
 
 export default function Record() {
+  const navigate = useNavigate();
   const { records, setRecords, deleteRecord, updateRecord, setLoading, setError, error } = useExperimentStore();
   const [selectedRecord, setSelectedRecord] = useState<ExperimentRecord | null>(null);
   const [conclusion, setConclusion] = useState('');
@@ -238,7 +240,20 @@ export default function Record() {
                     <Card
                       withBorder
                       radius="lg"
-                      style={{ height: '100%' }}
+                      style={{
+                        height: '100%',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onClick={() => navigate(`/record/${record.id}`)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                     >
                       <Card.Section withBorder inheritPadding py="md">
                         <Group justify="space-between" align="flex-start">
@@ -287,8 +302,18 @@ export default function Record() {
                       <Group mt="md" grow>
                         <Button
                           variant="light"
+                          leftSection={<Eye size={16} />}
+                          onClick={() => navigate(`/record/${record.id}`)}
+                        >
+                          查看详情
+                        </Button>
+                        <Button
+                          variant="light"
                           leftSection={<Edit size={16} />}
-                          onClick={() => handleEditConclusion(record)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditConclusion(record);
+                          }}
                         >
                           {record.conclusion ? '编辑结论' : '添加结论'}
                         </Button>
@@ -296,7 +321,10 @@ export default function Record() {
                           variant="light"
                           color="red"
                           leftSection={<Trash2 size={16} />}
-                          onClick={() => handleDelete(record.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(record.id);
+                          }}
                         >
                           删除
                         </Button>
