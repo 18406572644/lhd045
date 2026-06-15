@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Group, Text, ActionIcon, Tooltip, Flex } from '@mantine/core';
 import { useExperimentStore } from '../../store/useExperimentStore';
-import { Search, Home, FlaskConical, User, Moon, Sun, Menu, X } from 'lucide-react';
+import { Search, Home, FlaskConical, User, Moon, Sun, Menu, X, BookOpen } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -12,6 +12,7 @@ export const Navbar: React.FC = () => {
 
   const navItems = [
     { path: '/', label: '首页', icon: Home },
+    { path: '/encyclopedia', label: '化学百科', icon: BookOpen },
     { path: '/profile', label: '个人中心', icon: User }
   ];
 

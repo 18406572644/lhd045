@@ -14,6 +14,7 @@ interface ExperimentState {
   data: Record<string, number | string>[];
   records: ExperimentRecord[];
   favorites: string[];
+  chemicalFavorites: string[];
   settings: AppSettings;
   loading: boolean;
   error: string | null;
@@ -38,6 +39,7 @@ interface ExperimentActions {
   deleteRecord: (id: string) => void;
   setFavorites: (favorites: string[]) => void;
   toggleFavorite: (experimentId: string) => void;
+  toggleChemicalFavorite: (chemicalId: string) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -74,6 +76,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
       data: [],
       records: [],
       favorites: [],
+      chemicalFavorites: [],
       settings: initialSettings,
       loading: false,
       error: null,
@@ -179,6 +182,15 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
         };
       }),
 
+      toggleChemicalFavorite: (chemicalId) => set((state) => {
+        const isFavorite = state.chemicalFavorites.includes(chemicalId);
+        return {
+          chemicalFavorites: isFavorite
+            ? state.chemicalFavorites.filter(id => id !== chemicalId)
+            : [...state.chemicalFavorites, chemicalId]
+        };
+      }),
+
       updateSettings: (settings) => set((state) => ({
         settings: { ...state.settings, ...settings }
       })),
@@ -240,6 +252,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
       partialize: (state) => ({
         records: state.records,
         favorites: state.favorites,
+        chemicalFavorites: state.chemicalFavorites,
         settings: state.settings,
         preStudyCompleted: state.preStudyCompleted,
         quizPassed: state.quizPassed,

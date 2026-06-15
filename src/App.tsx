@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 import { theme } from './styles/theme';
 import { Navbar } from './components/common/Navbar';
-import { Home, Experiment, Record, RecordDetail, Report, Profile } from './pages';
+import { Home, Experiment, Record, RecordDetail, Report, Profile, Encyclopedia, SubstanceDetail } from './pages';
 import '@mantine/core/styles.css';
 
 export default function App() {
@@ -14,6 +14,8 @@ export default function App() {
           <main style={{ paddingTop: '60px' }}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/encyclopedia" element={<Encyclopedia />} />
+              <Route path="/encyclopedia/:id" element={<SubstanceDetail />} />
               <Route path="/experiment/:id" element={<Experiment />} />
               <Route path="/record" element={<Record />} />
               <Route path="/record/:id" element={<RecordDetail />} />

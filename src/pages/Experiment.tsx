@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Container, Title, Text, Group, Stack, Button, Paper, Divider, Badge, Alert, SimpleGrid, Tabs } from '@mantine/core';
-import { ArrowLeft, Play, Pause, RotateCcw, Save, AlertTriangle, BookOpen, GraduationCap, FlaskConical } from 'lucide-react';
+import { Container, Title, Text, Group, Stack, Button, Paper, Divider, Badge, Alert, SimpleGrid, Tabs, Tooltip } from '@mantine/core';
+import { ArrowLeft, Play, Pause, RotateCcw, Save, AlertTriangle, BookOpen, GraduationCap, FlaskConical, ExternalLink } from 'lucide-react';
 import { ExperimentScene, StepNavigation, ChemicalEquation, SafetyNotes, ParameterSettings, StepDetail, PreStudyTab } from '../components/experiment';
 import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
 import { useExperimentStore } from '../store/useExperimentStore';
 import type { Experiment } from '../types';
-import { calculateProgress, formatDuration } from '../utils/helpers';
+import { calculateProgress, formatDuration, highlightChemicalsInText } from '../utils/helpers';
 import { getDifficultyColor, getDifficultyLabel, getSafetyLevelColor, getSafetyLevelLabel } from '../styles/theme';
 
 export default function Experiment() {
@@ -97,6 +97,36 @@ export default function Experiment() {
       }
     };
   }, [isPlaying, currentStep, currentExperiment, nextStep, setIsPlaying]);
+
+  const renderTextWithChemicalLinks = useCallback((text: string) => {
+    const matches = highlightChemicalsInText(text);
+    return matches.map((match, index) => {
+      if (match.isLink && match.chemicalId) {
+        return (
+          <Tooltip key={index} label={`查看「${match.text}」百科详情`} position="top">
+            <Link
+              to={`/encyclopedia/${match.chemicalId}`}
+              style={{
+                color: '#10B981',
+                textDecoration: 'none',
+                borderBottom: '1px dashed #10B98180',
+                cursor: 'pointer',
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                transition: 'color 0.2s ease'
+              }}
+            >
+              {match.text}
+              <ExternalLink size={10} style={{ opacity: 0.6 }} />
+            </Link>
+          </Tooltip>
+        );
+      }
+      return <span key={index}>{match.text}</span>;
+    });
+  }, []);
 
   const handleSaveRecord = async () => {
     if (!currentExperiment) return;
@@ -362,7 +392,9 @@ export default function Experiment() {
                       <Text fw={600} mb="sm" c="#10B981">实验药品</Text>
                       <ul style={{ margin: 0, paddingLeft: '20px' }}>
                         {currentExperiment.materials.map((item, idx) => (
-                          <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
+                          <li key={idx} style={{ marginBottom: '4px' }}>
+                            {renderTextWithChemicalLinks(item)}
+                          </li>
                         ))}
                       </ul>
                     </div>

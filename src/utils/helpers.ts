@@ -1,5 +1,6 @@
 import type { ChemicalSubstance, ExperimentStep, Experiment, ExperimentRecord, ExperimentAnalysis, DataAnalysisResult, OperationNormalityCheck, DataPoint } from '../types';
 import { getChemicalStateLabel } from '../styles/theme';
+import { chemicalLibrary, type ChemicalItem } from '../data/library';
 
 export const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr);
@@ -772,4 +773,88 @@ export const analyzeExperiment = (
     summary,
     improvements
   };
+};
+
+const formulaNormalizeMap: Record<string, string> = {
+  '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4',
+  '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+  '·': ''
+};
+
+export const normalizeFormula = (formula: string): string => {
+  if (!formula) return '';
+  let result = formula;
+  for (const [key, value] of Object.entries(formulaNormalizeMap)) {
+    result = result.split(key).join(value);
+  }
+  result = result.replace(/\d+/g, '');
+  return result;
+};
+
+export const findChemicalBySubstance = (substance: { name: string; formula: string }): ChemicalItem | undefined => {
+  const normalizedTargetFormula = normalizeFormula(substance.formula);
+
+  for (const item of chemicalLibrary) {
+    if (substance.name && item.name === substance.name) {
+      return item;
+    }
+  }
+
+  if (normalizedTargetFormula) {
+    for (const item of chemicalLibrary) {
+      const normalizedItemFormula = normalizeFormula(item.formula);
+      if (normalizedItemFormula && normalizedItemFormula === normalizedTargetFormula) {
+        return item;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+export interface ChemicalMatch {
+  text: string;
+  chemicalId?: string;
+  isLink: boolean;
+}
+
+export const highlightChemicalsInText = (text: string): ChemicalMatch[] => {
+  if (!text) return [{ text, isLink: false }];
+
+  const result: ChemicalMatch[] = [];
+  let remainingText = text;
+
+  const sortedChemicals = [...chemicalLibrary].sort((a, b) => b.name.length - a.name.length);
+
+  while (remainingText.length > 0) {
+    let matched = false;
+
+    for (const chemical of sortedChemicals) {
+      const nameIdx = remainingText.indexOf(chemical.name);
+      if (nameIdx === 0) {
+        result.push({ text: chemical.name, chemicalId: chemical.id, isLink: true });
+        remainingText = remainingText.slice(chemical.name.length);
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      let nextMatchIndex = remainingText.length;
+
+      for (const chemical of sortedChemicals) {
+        const nameIdx = remainingText.indexOf(chemical.name);
+        if (nameIdx > 0 && nameIdx < nextMatchIndex) {
+          nextMatchIndex = nameIdx;
+        }
+      }
+
+      if (nextMatchIndex === 0) nextMatchIndex = 1;
+
+      result.push({ text: remainingText.slice(0, nextMatchIndex), isLink: false });
+      remainingText = remainingText.slice(nextMatchIndex);
+    }
+  }
+
+  return result;
 };

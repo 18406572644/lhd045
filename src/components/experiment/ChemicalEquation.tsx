@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { Paper, Text, Stack, Badge, Group } from '@mantine/core';
-import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Paper, Text, Stack, Badge, Group, Tooltip } from '@mantine/core';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 import type { ChemicalEquation as ChemicalEquationType } from '../../types';
-import { renderChemicalFormula } from '../../utils/helpers';
+import { renderChemicalFormula, findChemicalBySubstance } from '../../utils/helpers';
 import { getChemicalStateLabel } from '../../styles/theme';
 import { useExperimentStore } from '../../store/useExperimentStore';
 
@@ -13,6 +14,104 @@ interface ChemicalEquationProps {
 
 export const ChemicalEquation: React.FC<ChemicalEquationProps> = ({ equation, delay = 0 }) => {
   const { settings } = useExperimentStore();
+
+  const renderSubstance = (substance: { name: string; formula: string; state: string; color?: string }, isReactant: boolean, index: number, total: number) => {
+    const chemical = findChemicalBySubstance(substance);
+    const baseColor = substance.color || (settings.theme === 'light' ? '#1F2937' : '#F3F4F6');
+    const chemicalId = chemical?.id;
+    const Content = (
+      <motion.div
+        key={`${isReactant ? 'reactant' : 'product'}-${index}`}
+        initial={{ opacity: 0, x: isReactant ? -20 : 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{
+          delay: isReactant
+            ? index * 0.2
+            : equation.reactants.length * 0.2 + 0.3 + index * 0.2
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+      >
+        <Tooltip
+          label={chemicalId ? `查看「${substance.name}」百科详情` : undefined}
+          position="top"
+          disabled={!chemicalId}
+        >
+          <span
+            style={{
+              color: baseColor,
+              fontWeight: 600,
+              cursor: chemicalId ? 'pointer' : 'default',
+              textDecoration: chemicalId ? `underline dotted ${baseColor}66` : 'none',
+              textUnderlineOffset: '3px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '2px'
+            }}
+            dangerouslySetInnerHTML={{ __html: renderChemicalFormula(substance.formula) }}
+          />
+        </Tooltip>
+        <sub style={{
+          color: '#64748B',
+          fontSize: '11px',
+          marginLeft: '2px'
+        }}>
+          ({getChemicalStateLabel(substance.state)})
+        </sub>
+        {index < total - 1 && (
+          <span style={{ color: '#64748B', margin: '0 8px' }}>+</span>
+        )}
+      </motion.div>
+    );
+
+    if (chemicalId) {
+      return (
+        <Link
+          key={`link-${isReactant ? 'r' : 'p'}-${index}`}
+          to={`/encyclopedia/${chemicalId}`}
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {Content}
+        </Link>
+      );
+    }
+    return Content;
+  };
+
+  const renderNameBadge = (substance: { name: string; formula: string; color?: string }, index: number) => {
+    const chemical = findChemicalBySubstance(substance);
+    const BadgeElement = (
+      <Badge
+        key={`badge-${substance.formula}-${index}`}
+        variant="outline"
+        size="sm"
+        radius="sm"
+        style={{
+          borderColor: substance.color,
+          color: substance.color,
+          cursor: chemical?.id ? 'pointer' : 'default',
+          transition: 'all 0.2s ease'
+        }}
+        leftSection={chemical?.id ? <ExternalLink size={10} /> : undefined}
+      >
+        {substance.name}
+      </Badge>
+    );
+
+    if (chemical?.id) {
+      return (
+        <Link
+          key={`badge-link-${index}`}
+          to={`/encyclopedia/${chemical.id}`}
+          style={{ textDecoration: 'none' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {BadgeElement}
+        </Link>
+      );
+    }
+    return BadgeElement;
+  };
 
   return (
     <motion.div
@@ -52,33 +151,9 @@ export const ChemicalEquation: React.FC<ChemicalEquationProps> = ({ equation, de
               fontSize: '20px'
             }}
           >
-            {equation.reactants.map((reactant, index) => (
-              <motion.div
-                key={`reactant-${index}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.2 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <span
-                  style={{
-                    color: reactant.color || (settings.theme === 'light' ? '#1F2937' : '#F3F4F6'),
-                    fontWeight: 600
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderChemicalFormula(reactant.formula) }}
-                />
-                <sub style={{
-                  color: '#64748B',
-                  fontSize: '11px',
-                  marginLeft: '2px'
-                }}>
-                  ({getChemicalStateLabel(reactant.state)})
-                </sub>
-                {index < equation.reactants.length - 1 && (
-                  <span style={{ color: '#64748B', margin: '0 8px' }}>+</span>
-                )}
-              </motion.div>
-            ))}
+            {equation.reactants.map((reactant, index) =>
+              renderSubstance(reactant, true, index, equation.reactants.length)
+            )}
 
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
@@ -103,47 +178,15 @@ export const ChemicalEquation: React.FC<ChemicalEquationProps> = ({ equation, de
               />
             </motion.div>
 
-            {equation.products.map((product, index) => (
-              <motion.div
-                key={`product-${index}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: equation.reactants.length * 0.2 + 0.3 + index * 0.2 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <span
-                  style={{
-                    color: product.color || (settings.theme === 'light' ? '#1F2937' : '#F3F4F6'),
-                    fontWeight: 600
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderChemicalFormula(product.formula) }}
-                />
-                <sub style={{
-                  color: '#64748B',
-                  fontSize: '11px',
-                  marginLeft: '2px'
-                }}>
-                  ({getChemicalStateLabel(product.state)})
-                </sub>
-                {index < equation.products.length - 1 && (
-                  <span style={{ color: '#64748B', margin: '0 8px' }}>+</span>
-                )}
-              </motion.div>
-            ))}
+            {equation.products.map((product, index) =>
+              renderSubstance(product, false, index, equation.products.length)
+            )}
           </div>
 
           <Group gap="xs" style={{ flexWrap: 'wrap' }}>
-            {[...equation.reactants, ...equation.products].map((substance, index) => (
-              <Badge
-                key={`${substance.formula}-${index}`}
-                variant="outline"
-                size="sm"
-                radius="sm"
-                style={{ borderColor: substance.color, color: substance.color }}
-              >
-                {substance.name}
-              </Badge>
-            ))}
+            {[...equation.reactants, ...equation.products].map((substance, index) =>
+              renderNameBadge(substance, index)
+            )}
           </Group>
         </Stack>
       </Paper>

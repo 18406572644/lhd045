@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Paper, Text, Stack, Group, Badge, List, ThemeIcon, Box, Textarea, Button } from '@mantine/core';
-import { Lightbulb, ChevronRight, Clipboard, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Paper, Text, Stack, Group, Badge, List, ThemeIcon, Box, Textarea, Button, Tooltip } from '@mantine/core';
+import { Lightbulb, ChevronRight, Clipboard, Plus, ExternalLink } from 'lucide-react';
 import type { ExperimentStep } from '../../types';
 import { useExperimentStore } from '../../store/useExperimentStore';
-import { formatDuration } from '../../utils/helpers';
+import { formatDuration, highlightChemicalsInText } from '../../utils/helpers';
 
 interface StepDetailProps {
   step: ExperimentStep;
@@ -43,6 +44,42 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, parameters, onAddO
       addDataPoint(data);
     }
   };
+
+  const renderTextWithChemicalLinks = (text: string) => {
+    const matches = highlightChemicalsInText(text);
+    return matches.map((match, index) => {
+      if (match.isLink && match.chemicalId) {
+        return (
+          <Tooltip key={index} label={`查看「${match.text}」百科详情`} position="top">
+            <Link
+              to={`/encyclopedia/${match.chemicalId}`}
+              style={{
+                color: '#1E6FBA',
+                textDecoration: 'none',
+                borderBottom: '1px dashed #1E6FBA80',
+                cursor: 'pointer',
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                transition: 'color 0.2s ease'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {match.text}
+              <ExternalLink size={10} style={{ opacity: 0.6 }} />
+            </Link>
+          </Tooltip>
+        );
+      }
+      return <React.Fragment key={index}>{match.text}</React.Fragment>;
+    });
+  };
+
+  const highlightedDescription = useMemo(
+    () => renderTextWithChemicalLinks(step.description),
+    [step.description]
+  );
 
   return (
     <AnimatePresence mode="wait">
@@ -92,7 +129,7 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, parameters, onAddO
               </Group>
 
               <Text size="md" style={{ lineHeight: 1.8 }}>
-                {step.description}
+                {highlightedDescription}
               </Text>
             </Stack>
           </Paper>
@@ -116,7 +153,9 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, parameters, onAddO
                 }
               >
                 {step.tips.map((tip, index) => (
-                  <List.Item key={index}>{tip}</List.Item>
+                  <List.Item key={index}>
+                    {renderTextWithChemicalLinks(tip)}
+                  </List.Item>
                 ))}
               </List>
             </Paper>
