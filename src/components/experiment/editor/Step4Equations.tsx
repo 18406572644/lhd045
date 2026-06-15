@@ -442,6 +442,7 @@ export const Step4Equations: React.FC<Step4EquationsProps> = ({
                                                       value={reactant.state}
                                                       onChange={(val) => updateSubstance(eq.id, 'reactants', rIndex, 'state', val as ChemicalState)}
                                                       data={stateOptions}
+                                                      styles={{ dropdown: { zIndex: 9999 } }}
                                                     />
                                                     <Group gap="xs">
                                                       <ColorInput
@@ -452,6 +453,7 @@ export const Step4Equations: React.FC<Step4EquationsProps> = ({
                                                         format="hex"
                                                         swatches={defaultColors}
                                                         style={{ flex: 1 }}
+                                                        styles={{ dropdown: { zIndex: 9999 } }}
                                                       />
                                                       <ActionIcon
                                                         color="red"
@@ -518,6 +520,7 @@ export const Step4Equations: React.FC<Step4EquationsProps> = ({
                                                       value={product.state}
                                                       onChange={(val) => updateSubstance(eq.id, 'products', pIndex, 'state', val as ChemicalState)}
                                                       data={stateOptions}
+                                                      styles={{ dropdown: { zIndex: 9999 } }}
                                                     />
                                                     <Group gap="xs">
                                                       <ColorInput
@@ -528,6 +531,7 @@ export const Step4Equations: React.FC<Step4EquationsProps> = ({
                                                         format="hex"
                                                         swatches={defaultColors}
                                                         style={{ flex: 1 }}
+                                                        styles={{ dropdown: { zIndex: 9999 } }}
                                                       />
                                                       <ActionIcon
                                                         color="red"

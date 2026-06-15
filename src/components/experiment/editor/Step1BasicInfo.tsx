@@ -136,6 +136,7 @@ export const Step1BasicInfo: React.FC<Step1BasicInfoProps> = ({ value, onChange 
                   </Badge>
                 }
                 size="md"
+                styles={{ dropdown: { zIndex: 9999 } }}
               />
 
               <Select
@@ -154,6 +155,7 @@ export const Step1BasicInfo: React.FC<Step1BasicInfoProps> = ({ value, onChange 
                   </Badge>
                 }
                 size="md"
+                styles={{ dropdown: { zIndex: 9999 } }}
               />
 
               <Select
@@ -167,6 +169,7 @@ export const Step1BasicInfo: React.FC<Step1BasicInfoProps> = ({ value, onChange 
                 onChange={(val) => updateField('category', val || '自定义实验')}
                 data={categoryOptions}
                 size="md"
+                styles={{ dropdown: { zIndex: 9999 } }}
               />
 
               <NumberInput
@@ -196,6 +199,7 @@ export const Step1BasicInfo: React.FC<Step1BasicInfoProps> = ({ value, onChange 
                 onChange={(val) => updateField('icon', val || 'flask-conical')}
                 data={iconOptions}
                 size="md"
+                styles={{ dropdown: { zIndex: 9999 } }}
               />
             </SimpleGrid>
           </Stack>

@@ -303,6 +303,7 @@ export const Step3Steps: React.FC<Step3StepsProps> = ({ steps, onChange }) => {
                                           updateAnimationData(step.id, 'type', val);
                                         }}
                                         data={animationTypes.map(a => ({ value: a.value, label: a.label }))}
+                                        styles={{ dropdown: { zIndex: 9999 } }}
                                       />
                                       {step.animationType === 'heating' && (
                                         <NumberInput
@@ -322,6 +323,7 @@ export const Step3Steps: React.FC<Step3StepsProps> = ({ steps, onChange }) => {
                                           onChange={(val) => updateAnimationData(step.id, 'liquidColor', val)}
                                           format="hex"
                                           swatches={['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']}
+                                          styles={{ dropdown: { zIndex: 9999 } }}
                                         />
                                       )}
                                       {(step.animationType === 'bubbling' || step.animationType === 'reaction') && (
@@ -331,6 +333,7 @@ export const Step3Steps: React.FC<Step3StepsProps> = ({ steps, onChange }) => {
                                           onChange={(val) => updateAnimationData(step.id, 'bubbleColor', val)}
                                           format="hex"
                                           swatches={['#60A5FA', '#E5E7EB', '#10B981', '#F59E0B', '#EF4444']}
+                                          styles={{ dropdown: { zIndex: 9999 } }}
                                         />
                                       )}
                                     </SimpleGrid>

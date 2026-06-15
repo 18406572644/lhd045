@@ -8,6 +8,7 @@ import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
 import { useExperimentStore } from '../store/useExperimentStore';
+import type { Experiment } from '../types';
 import { calculateProgress, formatDuration } from '../utils/helpers';
 import { getDifficultyColor, getDifficultyLabel, getSafetyLevelColor, getSafetyLevelLabel } from '../styles/theme';
 
@@ -25,6 +26,7 @@ export default function Experiment() {
     data,
     preStudyCompleted,
     quizPassed,
+    customExperiments,
     setCurrentExperiment,
     setCurrentStep,
     nextStep,
@@ -42,17 +44,39 @@ export default function Experiment() {
   } = useExperimentStore();
 
   const [activeTab, setActiveTab] = useState<string | null>('prestudy');
+  const [customExperiment, setCustomExperiment] = useState<Experiment | null>(null);
+  const [isCustomExperiment, setIsCustomExperiment] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      const custom = customExperiments.find(exp => exp.id === id);
+      if (custom) {
+        setCustomExperiment(custom);
+        setIsCustomExperiment(true);
+        setCurrentExperiment(custom);
+      } else {
+        setCustomExperiment(null);
+        setIsCustomExperiment(false);
+      }
+    }
+  }, [id, customExperiments, setCurrentExperiment]);
 
   const { loading, data: experimentData, refetch } = useMockApi(
-    () => id ? mockApi.getExperiment(id) : Promise.reject('No ID'),
-    [id]
+    () => {
+      if (!id) return Promise.reject('No ID');
+      if (isCustomExperiment) {
+        return Promise.resolve({ success: true, data: customExperiment! });
+      }
+      return mockApi.getExperiment(id);
+    },
+    [id, isCustomExperiment, customExperiment]
   );
 
   useEffect(() => {
-    if (experimentData) {
+    if (experimentData && !isCustomExperiment) {
       setCurrentExperiment(experimentData);
     }
-  }, [experimentData, setCurrentExperiment, setError]);
+  }, [experimentData, isCustomExperiment, setCurrentExperiment, setError]);
 
   useEffect(() => {
     if (isPlaying && currentExperiment) {
@@ -104,7 +128,7 @@ export default function Experiment() {
     }
   };
 
-  if (loading) {
+  if (loading && !isCustomExperiment) {
     return (
       <Container size="xl" py="xl">
         <Loading type="detail" />
@@ -112,14 +136,14 @@ export default function Experiment() {
     );
   }
 
-  if (error || !currentExperiment) {
+  if ((error && !isCustomExperiment) || !currentExperiment) {
     return (
       <Container size="xl" py="xl">
         <Stack align="center" gap="md">
           <AlertTriangle size={48} color="#EF4444" />
           <Text c="red" size="lg">{error || '实验不存在'}</Text>
           <Group>
-            <Button onClick={refetch}>重新加载</Button>
+            {!isCustomExperiment && <Button onClick={refetch}>重新加载</Button>}
             <Button variant="light" onClick={() => navigate('/')}>返回首页</Button>
           </Group>
         </Stack>
