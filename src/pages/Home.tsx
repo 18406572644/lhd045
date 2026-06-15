@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Container, Title, Text, Group, Stack, SimpleGrid, Input, Button, Select, Badge } from '@mantine/core';
-import { Search, FlaskConical, BookOpen, Star, TrendingUp, Sparkles } from 'lucide-react';
+import { Search, FlaskConical, BookOpen, Star, TrendingUp, Sparkles, Plus, Import } from 'lucide-react';
 import { ExperimentCard } from '../components/common/ExperimentCard';
 import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
 import { useExperimentStore } from '../store/useExperimentStore';
+import { ExperimentEditor } from '../components/experiment/editor/ExperimentEditor';
+import { readFileContent, downloadFile } from '../utils/helpers';
 import type { Experiment, Difficulty, SafetyLevel } from '../types';
 
 const difficultyOptions = [
@@ -25,11 +27,13 @@ const categoryOptions = [
 ];
 
 export default function Home() {
-  const { experiments, setExperiments, favorites, records } = useExperimentStore();
+  const { experiments, setExperiments, favorites, records, customExperiments, importCustomExperiment } = useExperimentStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [activeTab, setActiveTab] = useState<'built-in' | 'custom'>('built-in');
 
   const { loading, error, data, refetch } = useMockApi(() => mockApi.getExperiments(), []);
 
@@ -39,7 +43,10 @@ export default function Home() {
     }
   }, [data, setExperiments]);
 
-  const filteredExperiments = experiments.filter(exp => {
+  const allExperiments = [...experiments, ...customExperiments];
+  const currentExperiments = activeTab === 'built-in' ? experiments : customExperiments;
+
+  const filteredExperiments = currentExperiments.filter(exp => {
     const matchesSearch = exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDifficulty = difficultyFilter === 'all' || exp.difficulty === difficultyFilter;
@@ -48,9 +55,30 @@ export default function Home() {
     return matchesSearch && matchesDifficulty && matchesCategory && matchesFavorite;
   });
 
+  const handleImportClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          const content = await readFileContent(file);
+          if (content) {
+            const experiment = JSON.parse(content) as Experiment;
+            importCustomExperiment(experiment);
+          }
+        } catch (err) {
+          console.error('导入失败:', err);
+        }
+      }
+    };
+    input.click();
+  };
+
   const stats = [
-    { icon: FlaskConical, label: '可用实验', value: experiments.length, color: '#1E6FBA' },
-    { icon: BookOpen, label: '实验记录', value: records.length, color: '#10B981' },
+    { icon: FlaskConical, label: '内置实验', value: experiments.length, color: '#1E6FBA' },
+    { icon: BookOpen, label: '自定义实验', value: customExperiments.length, color: '#10B981' },
     { icon: Star, label: '收藏实验', value: favorites.length, color: '#FBBF24' },
     { icon: TrendingUp, label: '完成进度', value: `${records.length > 0 ? Math.round((records.filter(r => r.endTime).length / records.length) * 100) : 0}%`, color: '#8B5CF6' }
   ];
@@ -178,13 +206,48 @@ export default function Home() {
               <Title order={2} size="h3">
                 实验列表
               </Title>
+              <Group gap="sm">
+                <Button
+                  variant="light"
+                  color="green"
+                  leftSection={<Import size={16} />}
+                  onClick={handleImportClick}
+                >
+                  导入实验
+                </Button>
+                <Button
+                  variant="filled"
+                  color="labBlue"
+                  leftSection={<Plus size={16} />}
+                  onClick={() => setShowEditor(true)}
+                >
+                  创建自定义实验
+                </Button>
+                <Button
+                  variant={showFavoritesOnly ? 'filled' : 'light'}
+                  color="yellow"
+                  leftSection={<Star size={16} />}
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                >
+                  {showFavoritesOnly ? '显示全部' : '仅显示收藏'}
+                </Button>
+              </Group>
+            </Group>
+
+            <Group gap="xs">
               <Button
-                variant={showFavoritesOnly ? 'filled' : 'light'}
-                color="yellow"
-                leftSection={<Star size={16} />}
-                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                variant={activeTab === 'built-in' ? 'filled' : 'light'}
+                color="labBlue"
+                onClick={() => setActiveTab('built-in')}
               >
-                {showFavoritesOnly ? '显示全部' : '仅显示收藏'}
+                内置实验 ({experiments.length})
+              </Button>
+              <Button
+                variant={activeTab === 'custom' ? 'filled' : 'light'}
+                color="green"
+                onClick={() => setActiveTab('custom')}
+              >
+                自定义实验 ({customExperiments.length})
               </Button>
             </Group>
 
@@ -242,6 +305,12 @@ export default function Home() {
           </Stack>
         </Stack>
       </motion.div>
+
+      <AnimatePresence>
+        {showEditor && (
+          <ExperimentEditor onClose={() => setShowEditor(false)} />
+        )}
+      </AnimatePresence>
     </Container>
   );
 }

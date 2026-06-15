@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Experiment, ExperimentRecord, Observation, AppSettings } from '../types';
+import { generateId } from '../utils/helpers';
 
 interface ExperimentState {
   experiments: Experiment[];
+  customExperiments: Experiment[];
   currentExperiment: Experiment | null;
   currentStep: number;
   isPlaying: boolean;
@@ -42,6 +44,11 @@ interface ExperimentActions {
   resetCurrentExperiment: () => void;
   markPreStudyCompleted: (experimentId: string) => void;
   setQuizPassed: (experimentId: string, passed: boolean) => void;
+  addCustomExperiment: (experiment: Omit<Experiment, 'id'>) => void;
+  updateCustomExperiment: (id: string, updates: Partial<Experiment>) => void;
+  deleteCustomExperiment: (id: string) => void;
+  setCustomExperiments: (experiments: Experiment[]) => void;
+  importCustomExperiment: (experiment: Experiment) => void;
 }
 
 const initialSettings: AppSettings = {
@@ -58,6 +65,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
   persist(
     (set, get) => ({
       experiments: [],
+      customExperiments: [],
       currentExperiment: null,
       currentStep: 0,
       isPlaying: false,
@@ -202,7 +210,30 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
 
       setQuizPassed: (experimentId, passed) => set((state) => ({
         quizPassed: { ...state.quizPassed, [experimentId]: passed }
-      }))
+      })),
+
+      addCustomExperiment: (experiment) => set((state) => ({
+        customExperiments: [...state.customExperiments, { ...experiment, id: `custom-${generateId()}` }]
+      })),
+
+      updateCustomExperiment: (id, updates) => set((state) => ({
+        customExperiments: state.customExperiments.map(exp =>
+          exp.id === id ? { ...exp, ...updates } : exp
+        )
+      })),
+
+      deleteCustomExperiment: (id) => set((state) => ({
+        customExperiments: state.customExperiments.filter(exp => exp.id !== id)
+      })),
+
+      setCustomExperiments: (experiments) => set({ customExperiments: experiments }),
+
+      importCustomExperiment: (experiment) => set((state) => {
+        const newId = `custom-${generateId()}`;
+        return {
+          customExperiments: [...state.customExperiments, { ...experiment, id: newId }]
+        };
+      })
     }),
     {
       name: 'chemistry-lab-storage',
@@ -211,7 +242,8 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
         favorites: state.favorites,
         settings: state.settings,
         preStudyCompleted: state.preStudyCompleted,
-        quizPassed: state.quizPassed
+        quizPassed: state.quizPassed,
+        customExperiments: state.customExperiments
       })
     }
   )
