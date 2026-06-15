@@ -97,10 +97,49 @@ export interface ExperimentRecord {
   conclusion?: string;
 }
 
+export type RenderMode = '2d' | '3d';
+export type ViewPreset = 'default' | 'front' | 'top' | 'side' | 'closeup';
+
+export interface CameraPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface CameraTarget {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface ViewAngle {
+  position: CameraPosition;
+  target: CameraTarget;
+}
+
+export interface Equipment3DConfig {
+  id: string;
+  type: 'beaker' | 'testTube' | 'alcoholLamp' | 'conicalFlask';
+  position: CameraPosition;
+  rotation?: CameraPosition;
+  scale?: number;
+  liquidColor?: string;
+  liquidLevel?: number;
+  showBubbles?: boolean;
+  bubbleColor?: string;
+  isHeating?: boolean;
+  flameIntensity?: number;
+  tilted?: boolean;
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark';
   autoPlaySpeed: number;
   showAnimations: boolean;
+  renderMode: RenderMode;
+  autoDetectRenderMode: boolean;
+  enable3DInteraction: boolean;
+  autoAdjustViewAngle: boolean;
 }
 
 export interface MockApiResponse<T> {

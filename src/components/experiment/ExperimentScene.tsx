@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Box, Group } from '@mantine/core';
+import { Box, Group, ActionIcon, Tooltip, Badge } from '@mantine/core';
+import { Box as BoxIcon, Layers, RotateCcw } from 'lucide-react';
 import { Beaker, TestTube, AlcoholLamp, ConicalFlask } from '../equipment';
-import type { AnimationConfig } from '../../types';
+import { ExperimentScene3D } from './ExperimentScene3D';
+import type { AnimationConfig, Experiment } from '../../types';
 import { useExperimentStore } from '../../store/useExperimentStore';
-
-import type { Experiment } from '../../types';
+import { shouldUse3D, detectDeviceCapability } from '../../utils/deviceDetection';
+import { VIEW_PRESETS } from '../../utils/viewAngles';
+import type { ViewPreset } from '../../types';
 
 interface ExperimentSceneProps {
   animationData: AnimationConfig;
@@ -15,12 +19,54 @@ interface ExperimentSceneProps {
   parameters?: Record<string, number>;
 }
 
-export const ExperimentScene: React.FC<ExperimentSceneProps> = ({ animationData, experimentId, experiment, currentStep, animationType, parameters }) => {
+export const ExperimentScene: React.FC<ExperimentSceneProps> = ({
+  animationData,
+  experimentId,
+  experiment,
+  currentStep,
+  animationType,
+  parameters
+}) => {
+  void parameters;
   const id = experiment?.id || experimentId || 'default';
-  const { settings } = useExperimentStore();
+  const { settings, updateSettings } = useExperimentStore();
   const { type, liquidColor, bubbleColor, flameIntensity } = animationData;
 
-  const renderEquipment = () => {
+  const [effectiveMode, setEffectiveMode] = useState<'2d' | '3d'>(settings.renderMode);
+  const [deviceInfo, setDeviceInfo] = useState<{ isLowEnd: boolean; supportsWebGL2: boolean } | null>(null);
+  const [viewPreset, setViewPreset] = useState<ViewPreset>('default');
+
+  useEffect(() => {
+    const capability = detectDeviceCapability();
+    setDeviceInfo({
+      isLowEnd: capability.isLowEndDevice,
+      supportsWebGL2: capability.supportsWebGL2
+    });
+
+    if (settings.autoDetectRenderMode) {
+      const use3D = shouldUse3D(true);
+      setEffectiveMode(use3D ? '3d' : '2d');
+    } else {
+      setEffectiveMode(settings.renderMode);
+    }
+  }, [settings.renderMode, settings.autoDetectRenderMode]);
+
+  const handleToggleMode = () => {
+    if (deviceInfo && deviceInfo.isLowEnd && settings.renderMode === '2d') {
+      updateSettings({ renderMode: '3d', autoDetectRenderMode: false });
+      setEffectiveMode('3d');
+    } else {
+      const newMode: '2d' | '3d' = effectiveMode === '2d' ? '3d' : '2d';
+      updateSettings({ renderMode: newMode, autoDetectRenderMode: false });
+      setEffectiveMode(newMode);
+    }
+  };
+
+  const handleResetView = () => {
+    setViewPreset('default');
+  };
+
+  const renderEquipment2D = () => {
     switch (id) {
       case 'kmno4-oxygen':
         return (
@@ -167,20 +213,94 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({ animationData,
   return (
     <Box
       style={{
-        padding: '40px',
+        padding: '16px',
         background: settings.theme === 'light'
           ? 'linear-gradient(135deg, #F0F4F8 0%, #E2E8F0 50%, #CBD5E1 100%)'
           : 'linear-gradient(135deg, #1E293B 0%, #334155 50%, #475569 100%)',
         borderRadius: '16px',
         minHeight: '380px',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         position: 'relative',
         overflow: 'hidden',
         boxShadow: 'inset 0 2px 20px rgba(0,0,0,0.05)'
       }}
     >
+      <Group
+        justify="space-between"
+        style={{
+          position: 'absolute',
+          top: '12px',
+          left: '16px',
+          right: '16px',
+          zIndex: 20
+        }}
+      >
+        <Group gap="xs">
+          <Badge
+            variant="filled"
+            color={effectiveMode === '3d' ? 'labBlue' : 'gray'}
+            radius="sm"
+          >
+            {effectiveMode === '3d' ? '3D 模式' : '2D 模式'}
+          </Badge>
+          {deviceInfo?.isLowEnd && effectiveMode === '2d' && (
+            <Badge variant="outline" color="warningOrange" radius="sm">
+              已自动降级
+            </Badge>
+          )}
+        </Group>
+
+        <Group gap="xs">
+          {effectiveMode === '3d' && (
+            <>
+              <Tooltip label="重置视角" position="bottom">
+                <ActionIcon
+                  variant="light"
+                  onClick={handleResetView}
+                  style={{
+                    background: settings.theme === 'light' ? 'rgba(255,255,255,0.8)' : 'rgba(30,41,59,0.8)',
+                    backdropFilter: 'blur(8px)'
+                  }}
+                >
+                  <RotateCcw size={16} />
+                </ActionIcon>
+              </Tooltip>
+              {Object.entries(VIEW_PRESETS).map(([key]) => (
+                <Tooltip key={key} label={`${key}视角`} position="bottom">
+                  <ActionIcon
+                    variant={viewPreset === key ? 'filled' : 'light'}
+                    onClick={() => setViewPreset(key as ViewPreset)}
+                    style={{
+                      background: viewPreset === key
+                        ? undefined
+                        : settings.theme === 'light' ? 'rgba(255,255,255,0.8)' : 'rgba(30,41,59,0.8)',
+                      backdropFilter: 'blur(8px)'
+                    }}
+                  >
+                    {key === 'front' && <BoxIcon size={16} />}
+                    {key !== 'front' && <Layers size={16} />}
+                  </ActionIcon>
+                </Tooltip>
+              ))}
+            </>
+          )}
+
+          <Tooltip
+            label={effectiveMode === '3d' ? '切换到 2D 模式' : '切换到 3D 模式'}
+            position="bottom"
+          >
+            <ActionIcon
+              variant="filled"
+              color={effectiveMode === '3d' ? 'labBlue' : 'successGreen'}
+              onClick={handleToggleMode}
+            >
+              {effectiveMode === '3d' ? <BoxIcon size={16} /> : <Layers size={16} />}
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
+
       <div
         style={{
           position: 'absolute',
@@ -190,54 +310,81 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({ animationData,
           height: '60px',
           background: settings.theme === 'light'
             ? 'linear-gradient(to top, rgba(148, 163, 184, 0.3), transparent)'
-            : 'linear-gradient(to top, rgba(71, 85, 105, 0.4), transparent)'
+            : 'linear-gradient(to top, rgba(71, 85, 105, 0.4), transparent)',
+          pointerEvents: 'none'
         }}
       />
-      
+
       <div
         style={{
           position: 'absolute',
-          top: '20px',
+          top: '56px',
           left: '20px',
           right: '20px',
           height: '2px',
           background: settings.theme === 'light'
             ? 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.5), transparent)'
-            : 'linear-gradient(90deg, transparent, rgba(100, 116, 139, 0.5), transparent)'
+            : 'linear-gradient(90deg, transparent, rgba(100, 116, 139, 0.5), transparent)',
+          pointerEvents: 'none'
         }}
       />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`${id}-${type}`}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.1 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            gap: '32px',
-            zIndex: 1
-          }}
-        >
-          {settings.showAnimations && renderEquipment()}
-        </motion.div>
-      </AnimatePresence>
+      <Box
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: '40px',
+          minHeight: '320px'
+        }}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${id}-${type}-${effectiveMode}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1
+            }}
+          >
+            {settings.showAnimations && effectiveMode === '3d' && deviceInfo?.supportsWebGL2 ? (
+              <ExperimentScene3D
+                experiment={experiment}
+                experimentId={experimentId}
+                currentStep={currentStep}
+                animationData={animationData}
+                animationType={animationType}
+                viewPreset={viewPreset}
+              />
+            ) : (
+              settings.showAnimations && renderEquipment2D()
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </Box>
 
       <div
         style={{
           position: 'absolute',
-          bottom: '20px',
+          bottom: '16px',
           left: '50%',
           transform: 'translateX(-50%)',
           fontSize: '12px',
           color: settings.theme === 'light' ? '#64748B' : '#94A3B8',
-          fontFamily: '"JetBrains Mono", monospace'
+          fontFamily: '"JetBrains Mono", monospace',
+          pointerEvents: 'none',
+          zIndex: effectiveMode === '2d' ? 10 : 5
         }}
       >
-        实验台 · 模拟环境
+        {effectiveMode === '2d' ? '实验台 · 模拟环境 (2D)' : ''}
       </div>
     </Box>
   );

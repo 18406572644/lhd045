@@ -1,4 +1,5 @@
 export { ExperimentScene } from './ExperimentScene';
+export { ExperimentScene3D } from './ExperimentScene3D';
 export { StepNavigation } from './StepNavigation';
 export { ChemicalEquation } from './ChemicalEquation';
 export { SafetyNotes } from './SafetyNotes';

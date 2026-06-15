@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Card, Switch, Slider, Avatar, Divider, ActionIcon, Tooltip, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { User, Settings, Moon, Sun, Play, Trash2, Download, Upload, AlertTriangle, Info } from 'lucide-react';
+import { User, Settings, Moon, Sun, Play, Trash2, Download, Upload, AlertTriangle, Info, Box, Layers, Eye, MousePointer } from 'lucide-react';
 import { useExperimentStore } from '../store/useExperimentStore';
 import { mockApi } from '../utils/api';
 import { downloadFile, readFileContent } from '../utils/helpers';
@@ -21,6 +21,22 @@ export default function Profile() {
 
   const handleAnimationsToggle = () => {
     updateSettings({ showAnimations: !settings.showAnimations });
+  };
+
+  const handleRenderModeToggle = () => {
+    updateSettings({ renderMode: settings.renderMode === '2d' ? '3d' : '2d', autoDetectRenderMode: false });
+  };
+
+  const handleAutoDetectToggle = () => {
+    updateSettings({ autoDetectRenderMode: !settings.autoDetectRenderMode });
+  };
+
+  const handle3DInteractionToggle = () => {
+    updateSettings({ enable3DInteraction: !settings.enable3DInteraction });
+  };
+
+  const handleAutoAdjustViewToggle = () => {
+    updateSettings({ autoAdjustViewAngle: !settings.autoAdjustViewAngle });
   };
 
   const handleExportAll = async () => {
@@ -237,6 +253,73 @@ export default function Profile() {
                 <Switch
                   checked={settings.showAnimations}
                   onChange={handleAnimationsToggle}
+                  size="lg"
+                />
+              </Group>
+
+              <Divider />
+
+              <Group justify="space-between" wrap="wrap">
+                <Stack gap={0}>
+                  <Group gap="sm">
+                    {settings.renderMode === '3d' ? <Layers size={18} /> : <Box size={18} />}
+                    <Text fw={500}>3D 场景模式</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    {settings.renderMode === '3d'
+                      ? '使用 Three.js 渲染 3D 实验场景'
+                      : '使用传统 SVG 渲染 2D 实验场景'}
+                  </Text>
+                </Stack>
+                <Switch
+                  checked={settings.renderMode === '3d'}
+                  onChange={handleRenderModeToggle}
+                  size="lg"
+                  color={settings.renderMode === '3d' ? 'labBlue' : 'gray'}
+                />
+              </Group>
+
+              <Group justify="space-between" wrap="wrap">
+                <Stack gap={0}>
+                  <Group gap="sm">
+                    <Eye size={18} />
+                    <Text fw={500}>自动检测设备性能</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">低端设备自动降级为 2D 模式以保证流畅运行</Text>
+                </Stack>
+                <Switch
+                  checked={settings.autoDetectRenderMode}
+                  onChange={handleAutoDetectToggle}
+                  size="lg"
+                />
+              </Group>
+
+              <Group justify="space-between" wrap="wrap">
+                <Stack gap={0}>
+                  <Group gap="sm">
+                    <MousePointer size={18} />
+                    <Text fw={500}>3D 器材交互</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">允许在 3D 场景中点击选中和拖拽器材</Text>
+                </Stack>
+                <Switch
+                  checked={settings.enable3DInteraction}
+                  onChange={handle3DInteractionToggle}
+                  size="lg"
+                />
+              </Group>
+
+              <Group justify="space-between" wrap="wrap">
+                <Stack gap={0}>
+                  <Group gap="sm">
+                    <Eye size={18} />
+                    <Text fw={500}>步骤视角自动调整</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">切换实验步骤时自动调整到最佳观察视角</Text>
+                </Stack>
+                <Switch
+                  checked={settings.autoAdjustViewAngle}
+                  onChange={handleAutoAdjustViewToggle}
                   size="lg"
                 />
               </Group>

@@ -43,7 +43,11 @@ interface ExperimentActions {
 const initialSettings: AppSettings = {
   theme: 'light',
   autoPlaySpeed: 1,
-  showAnimations: true
+  showAnimations: true,
+  renderMode: '2d',
+  autoDetectRenderMode: true,
+  enable3DInteraction: true,
+  autoAdjustViewAngle: true
 };
 
 export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
