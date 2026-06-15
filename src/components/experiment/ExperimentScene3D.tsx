@@ -47,9 +47,12 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
   const dragPlaneRef = useRef<THREE.Plane>(new THREE.Plane());
   const dragOffsetRef = useRef<THREE.Vector3>(new THREE.Vector3());
   const isDraggingRef = useRef<boolean>(false);
+  const isEquipmentDraggingRef = useRef<boolean>(false);
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
+  const highlightRingRef = useRef<THREE.Mesh | null>(null);
+  const isInitializedRef = useRef<boolean>(false);
+
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
-  const [highlightRing, setHighlightRing] = useState<THREE.Mesh | null>(null);
 
   const id = experiment?.id || experimentId || 'default';
   const { settings } = useExperimentStore();
@@ -80,31 +83,9 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
             {
               id: 'lamp-1',
               type: 'alcoholLamp',
-              position: { x: -1.5, y: 0, z: -1.2 },
+              position: { x: 0, y: 0, z: -1.2 },
               isHeating: true,
-              flameIntensity: flameIntensity || 0.8
-            }
-          ];
-        }
-        if (isBubbling) {
-          return [
-            {
-              id: 'test-tube-1',
-              type: 'testTube',
-              position: { x: -1.5, y: 0, z: 0 },
-              liquidColor: liquidColor || '#7C3AED',
-              liquidLevel: 60,
-              showBubbles: true,
-              bubbleColor: bubbleColor || '#60A5FA'
-            },
-            {
-              id: 'beaker-1',
-              type: 'beaker',
-              position: { x: 1.5, y: 0, z: 0 },
-              liquidColor: '#3B82F6',
-              liquidLevel: 70,
-              showBubbles: true,
-              bubbleColor: '#FFFFFF'
+              flameIntensity: flameIntensity || 0.7
             }
           ];
         }
@@ -119,26 +100,6 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
         ];
 
       case 'acid-base-neutralization':
-        if (isHeating) {
-          return [
-            {
-              id: 'beaker-1',
-              type: 'beaker',
-              position: { x: 0, y: 0, z: 0 },
-              liquidColor: isReaction ? '#10B981' : liquidColor || '#EC4899',
-              liquidLevel: isPouring ? 40 : 65,
-              showBubbles: isBubbling || isReaction,
-              bubbleColor: bubbleColor || '#FFFFFF'
-            },
-            {
-              id: 'lamp-1',
-              type: 'alcoholLamp',
-              position: { x: 0, y: 0, z: -1.2 },
-              isHeating: true,
-              flameIntensity: flameIntensity || 0.6
-            }
-          ];
-        }
         return [
           {
             id: 'beaker-1',
@@ -148,42 +109,36 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
             liquidLevel: isPouring ? 40 : 65,
             showBubbles: isBubbling || isReaction,
             bubbleColor: bubbleColor || '#FFFFFF'
-          }
+          },
+          ...(isHeating ? [{
+            id: 'lamp-1',
+            type: 'alcoholLamp' as const,
+            position: { x: 1.5, y: 0, z: -0.5 },
+            isHeating: true,
+            flameIntensity: flameIntensity || 0.6
+          }] : [])
         ];
 
       case 'caco3-co2':
-        if (isReaction) {
-          return [
-            {
-              id: 'flask-1',
-              type: 'conicalFlask',
-              position: { x: -1.2, y: 0, z: 0 },
-              liquidColor: liquidColor || '#60A5FA',
-              liquidLevel: 55,
-              showBubbles: isBubbling || isReaction,
-              bubbleColor: bubbleColor || '#9CA3AF'
-            },
-            {
-              id: 'test-tube-1',
-              type: 'testTube',
-              position: { x: 1.5, y: 0, z: 0 },
-              liquidColor: liquidColor || '#D1D5DB',
-              liquidLevel: 50,
-              showBubbles: true,
-              bubbleColor: '#F3F4F6'
-            }
-          ];
-        }
         return [
           {
             id: 'flask-1',
             type: 'conicalFlask',
-            position: { x: 0, y: 0, z: 0 },
+            position: { x: -1, y: 0, z: 0 },
             liquidColor: liquidColor || '#60A5FA',
             liquidLevel: 55,
             showBubbles: isBubbling || isReaction,
             bubbleColor: bubbleColor || '#9CA3AF'
-          }
+          },
+          ...(isReaction ? [{
+            id: 'test-tube-1',
+            type: 'testTube' as const,
+            position: { x: 1.2, y: 0, z: 0 },
+            liquidColor: liquidColor || '#D1D5DB',
+            liquidLevel: 50,
+            showBubbles: true,
+            bubbleColor: '#F3F4F6'
+          }] : [])
         ];
 
       case 'cuso4-h2o':
@@ -192,7 +147,7 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
             {
               id: 'test-tube-1',
               type: 'testTube',
-              position: { x: 0, y: 0, z: 0 },
+              position: { x: -1.2, y: 0, z: 0 },
               liquidColor: '#F59E0B',
               liquidLevel: 45,
               showBubbles: isBubbling,
@@ -366,65 +321,12 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
     );
   }, [id, currentStep, animationData, settings.autoAdjustViewAngle]);
 
-  const createLabTable = useCallback((scene: THREE.Scene, isLight: boolean) => {
-    const tableMaterial = new THREE.MeshStandardMaterial({
-      color: isLight ? 0xe2e8f0 : 0x334155,
-      roughness: 0.8,
-      metalness: 0.1
-    });
-
-    const table = new THREE.Mesh(
-      new THREE.BoxGeometry(10, 0.3, 6),
-      tableMaterial
-    );
-    table.position.y = -0.15;
-    table.receiveShadow = true;
-    scene.add(table);
-
-    const edgeMaterial = new THREE.MeshStandardMaterial({
-      color: isLight ? 0x94a3b8 : 0x475569,
-      roughness: 0.6,
-      metalness: 0.2
-    });
-
-    const edges = [
-      { w: 10, h: 0.05, d: 0.05, x: 0, y: 0, z: 3 },
-      { w: 10, h: 0.05, d: 0.05, x: 0, y: 0, z: -3 },
-      { w: 0.05, h: 0.05, d: 6, x: 5, y: 0, z: 0 },
-      { w: 0.05, h: 0.05, d: 6, x: -5, y: 0, z: 0 }
-    ];
-
-    edges.forEach((e) => {
-      const edge = new THREE.Mesh(
-        new THREE.BoxGeometry(e.w, e.h, e.d),
-        edgeMaterial
-      );
-      edge.position.set(e.x, e.y, e.z);
-      scene.add(edge);
-    });
-  }, []);
-
-  const createHighlightRing = useCallback((scene: THREE.Scene) => {
-    const ringGeometry = new THREE.RingGeometry(0.8, 0.95, 48);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0x1e6fba,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide
-    });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.02;
-    ring.visible = false;
-    scene.add(ring);
-    setHighlightRing(ring);
-    return ring;
-  }, []);
-
   useEffect(() => {
     if (!containerRef.current) return;
-    const container = containerRef.current;
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
 
+    const container = containerRef.current;
     const isLightTheme = settings.theme === 'light';
 
     const scene = new THREE.Scene();
@@ -432,12 +334,10 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
     scene.fog = new THREE.Fog(isLightTheme ? 0xe2e8f0 : 0x334155, 15, 30);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
-      0.1,
-      100
-    );
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 400;
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 3, 8);
     cameraRef.current = camera;
 
@@ -445,13 +345,13 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
       antialias: true,
       alpha: false
     });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     const controls = new OrbitControls(camera, renderer.domElement, {
@@ -498,12 +398,49 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
     rimLight.position.set(0, 5, -8);
     scene.add(rimLight);
 
-    createLabTable(scene, isLightTheme);
-    createHighlightRing(scene);
+    const tableMaterial = new THREE.MeshStandardMaterial({
+      color: isLightTheme ? 0xe2e8f0 : 0x334155,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+    const table = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 6), tableMaterial);
+    table.position.y = -0.15;
+    table.receiveShadow = true;
+    scene.add(table);
+
+    const edgeMaterial = new THREE.MeshStandardMaterial({
+      color: isLightTheme ? 0x94a3b8 : 0x475569,
+      roughness: 0.6,
+      metalness: 0.2
+    });
+    const edges = [
+      { w: 10, h: 0.05, d: 0.05, x: 0, y: 0, z: 3 },
+      { w: 10, h: 0.05, d: 0.05, x: 0, y: 0, z: -3 },
+      { w: 0.05, h: 0.05, d: 6, x: 5, y: 0, z: 0 },
+      { w: 0.05, h: 0.05, d: 6, x: -5, y: 0, z: 0 }
+    ];
+    edges.forEach((e) => {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(e.w, e.h, e.d), edgeMaterial);
+      edge.position.set(e.x, e.y, e.z);
+      scene.add(edge);
+    });
+
+    const ringGeometry = new THREE.RingGeometry(0.8, 0.95, 48);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x1e6fba,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.02;
+    ring.visible = false;
+    scene.add(ring);
+    highlightRingRef.current = ring;
 
     const onPointerDown = (event: PointerEvent) => {
       if (!renderer.domElement || !cameraRef.current || !sceneRef.current) return;
-      if (!settings.enable3DInteraction) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -511,46 +448,52 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
 
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
 
-      const allMeshes: THREE.Object3D[] = [];
-      equipmentRef.current.forEach((item) => {
-        item.group.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) allMeshes.push(obj);
+      if (settings.enable3DInteraction && event.button === 0) {
+        const allMeshes: THREE.Object3D[] = [];
+        equipmentRef.current.forEach((item) => {
+          item.group.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) allMeshes.push(obj);
+          });
         });
-      });
 
-      const intersects = raycasterRef.current.intersectObjects(allMeshes, false);
+        const intersects = raycasterRef.current.intersectObjects(allMeshes, false);
 
-      if (intersects.length > 0 && event.button === 0) {
-        let obj: THREE.Object3D | null = intersects[0].object;
-        while (obj && !obj.userData.equipmentId) {
-          obj = obj.parent;
-        }
-        if (obj && obj.userData.equipmentId) {
-          isDraggingRef.current = true;
-          selectedIdRef.current = obj.userData.equipmentId;
-          setSelectedEquipmentId(obj.userData.equipmentId);
-
-          if (cameraRef.current) {
-            dragPlaneRef.current.setFromNormalAndCoplanarPoint(
-              new THREE.Vector3(0, 1, 0),
-              new THREE.Vector3(obj.position.x, 0, obj.position.z)
-            );
-
-            const intersection = new THREE.Vector3();
-            raycasterRef.current.ray.intersectPlane(dragPlaneRef.current, intersection);
-            dragOffsetRef.current.copy(obj.position).sub(intersection);
+        if (intersects.length > 0) {
+          let obj: THREE.Object3D | null = intersects[0].object;
+          while (obj && !obj.userData.equipmentId) {
+            obj = obj.parent;
           }
+          if (obj && obj.userData.equipmentId) {
+            isEquipmentDraggingRef.current = true;
+            selectedIdRef.current = obj.userData.equipmentId;
+            setSelectedEquipmentId(obj.userData.equipmentId);
 
-          if (controlsRef.current) {
-            controlsRef.current.enableRotate = false;
-            controlsRef.current.enablePan = false;
+            if (cameraRef.current) {
+              dragPlaneRef.current.setFromNormalAndCoplanarPoint(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(obj.position.x, 0, obj.position.z)
+              );
+
+              const intersection = new THREE.Vector3();
+              raycasterRef.current.ray.intersectPlane(dragPlaneRef.current, intersection);
+              dragOffsetRef.current.copy(obj.position).sub(intersection);
+            }
+
+            if (controlsRef.current) {
+              controlsRef.current.enableRotate = false;
+              controlsRef.current.enablePan = false;
+            }
+            return;
           }
         }
       }
+
+      setSelectedEquipmentId(null);
+      selectedIdRef.current = null;
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!isDraggingRef.current || !renderer.domElement || !cameraRef.current) return;
+      if (!isEquipmentDraggingRef.current || !renderer.domElement || !cameraRef.current) return;
       if (!selectedIdRef.current) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
@@ -570,7 +513,7 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
     };
 
     const onPointerUp = () => {
-      isDraggingRef.current = false;
+      isEquipmentDraggingRef.current = false;
       if (controlsRef.current) {
         controlsRef.current.enableRotate = true;
         controlsRef.current.enablePan = true;
@@ -592,33 +535,41 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
         animateLiquid(item.group, elapsedTime);
       });
 
-      if (selectedIdRef.current && highlightRing) {
+      const ring = highlightRingRef.current;
+      if (selectedIdRef.current && ring) {
         const item = equipmentRef.current.get(selectedIdRef.current);
         if (item) {
-          highlightRing.visible = true;
-          highlightRing.position.x = item.group.position.x;
-          highlightRing.position.z = item.group.position.z;
-          highlightRing.rotation.z = elapsedTime * 0.5;
+          ring.visible = true;
+          ring.position.x = item.group.position.x;
+          ring.position.z = item.group.position.z;
+          ring.rotation.z = elapsedTime * 0.5;
           const scale = 1 + Math.sin(elapsedTime * 3) * 0.03;
-          highlightRing.scale.set(scale, scale, scale);
+          ring.scale.set(scale, scale, scale);
         }
-      } else if (highlightRing) {
-        highlightRing.visible = false;
+      } else if (ring) {
+        ring.visible = false;
       }
 
-      controls.update();
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
       renderer.render(scene, camera);
     };
 
     animate();
 
     const handleResize = () => {
-      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
-      cameraRef.current.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      if (!container || !cameraRef.current || !rendererRef.current) return;
+      const w = container.clientWidth || 600;
+      const h = container.clientHeight || 400;
+      cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      rendererRef.current.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
+
+    updateEquipment();
+    autoAdjustView();
 
     return () => {
       cancelAnimationFrame(animationFrameRef.current);
@@ -628,7 +579,9 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointerleave', onPointerUp);
 
-      controls.dispose();
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+      }
 
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
@@ -645,8 +598,11 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
       if (container && renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
+
+      isInitializedRef.current = false;
+      equipmentRef.current.clear();
     };
-  }, [settings.theme, settings.enable3DInteraction, createLabTable, createHighlightRing, highlightRing]);
+  }, [settings.theme, settings.enable3DInteraction, updateEquipment, autoAdjustView]);
 
   useEffect(() => {
     updateEquipment();
@@ -670,7 +626,7 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
     if (!controlsRef.current || !cameraRef.current || !viewPreset || viewPreset === 'default') return;
 
     const preset = VIEW_PRESETS[viewPreset];
-    if (preset) {
+    if (preset && controlsRef.current) {
       controlsRef.current.smoothMoveTo(
         new THREE.Vector3(preset.position.x, preset.position.y, preset.position.z),
         new THREE.Vector3(preset.target.x, preset.target.y, preset.target.z),
@@ -709,6 +665,7 @@ export const ExperimentScene3D: React.FC<ExperimentScene3DProps> = ({
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLDivElement).style.cursor = settings.enable3DInteraction ? 'grab' : 'default';
+        void e;
       }}
     >
       <div

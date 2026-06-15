@@ -32,17 +32,29 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({
   const { settings, updateSettings } = useExperimentStore();
   const { type, liquidColor, bubbleColor, flameIntensity } = animationData;
 
-  const [effectiveMode, setEffectiveMode] = useState<'2d' | '3d'>(settings.renderMode);
-  const [deviceInfo, setDeviceInfo] = useState<{ isLowEnd: boolean; supportsWebGL2: boolean } | null>(null);
+  const [effectiveMode, setEffectiveMode] = useState<'2d' | '3d'>(() => {
+    if (typeof window === 'undefined') return '2d';
+    if (settings.autoDetectRenderMode) {
+      return shouldUse3D(true) ? '3d' : '2d';
+    }
+    return settings.renderMode;
+  });
+
+  const [deviceInfo, setDeviceInfo] = useState<{ isLowEnd: boolean; supportsWebGL: boolean; supportsWebGL2: boolean }>(() => {
+    if (typeof window === 'undefined') {
+      return { isLowEnd: true, supportsWebGL: false, supportsWebGL2: false };
+    }
+    const capability = detectDeviceCapability();
+    return {
+      isLowEnd: capability.isLowEndDevice,
+      supportsWebGL: capability.supportsWebGL,
+      supportsWebGL2: capability.supportsWebGL2
+    };
+  });
+
   const [viewPreset, setViewPreset] = useState<ViewPreset>('default');
 
   useEffect(() => {
-    const capability = detectDeviceCapability();
-    setDeviceInfo({
-      isLowEnd: capability.isLowEndDevice,
-      supportsWebGL2: capability.supportsWebGL2
-    });
-
     if (settings.autoDetectRenderMode) {
       const use3D = shouldUse3D(true);
       setEffectiveMode(use3D ? '3d' : '2d');
@@ -52,7 +64,7 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({
   }, [settings.renderMode, settings.autoDetectRenderMode]);
 
   const handleToggleMode = () => {
-    if (deviceInfo && deviceInfo.isLowEnd && settings.renderMode === '2d') {
+    if (deviceInfo.isLowEnd && settings.renderMode === '2d') {
       updateSettings({ renderMode: '3d', autoDetectRenderMode: false });
       setEffectiveMode('3d');
     } else {
@@ -244,7 +256,7 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({
           >
             {effectiveMode === '3d' ? '3D 模式' : '2D 模式'}
           </Badge>
-          {deviceInfo?.isLowEnd && effectiveMode === '2d' && (
+          {deviceInfo.isLowEnd && effectiveMode === '2d' && (
             <Badge variant="outline" color="warningOrange" radius="sm">
               已自动降级
             </Badge>
@@ -355,7 +367,7 @@ export const ExperimentScene: React.FC<ExperimentSceneProps> = ({
               zIndex: 1
             }}
           >
-            {settings.showAnimations && effectiveMode === '3d' && deviceInfo?.supportsWebGL2 ? (
+            {settings.showAnimations && effectiveMode === '3d' && deviceInfo.supportsWebGL ? (
               <ExperimentScene3D
                 experiment={experiment}
                 experimentId={experimentId}

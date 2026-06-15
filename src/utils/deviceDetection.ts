@@ -53,7 +53,6 @@ export const detectDeviceCapability = (): DeviceCapability => {
 
   const isLowEndDevice =
     !supportsWebGL ||
-    !supportsWebGL2 ||
     isMobile ||
     cores <= 2 ||
     memory <= 2 ||
@@ -79,5 +78,5 @@ export const shouldUse3D = (autoDetect: boolean, userPreference?: '2d' | '3d'): 
     return true;
   }
   const capability = detectDeviceCapability();
-  return !capability.isLowEndDevice && capability.supportsWebGL2;
+  return !capability.isLowEndDevice && capability.supportsWebGL;
 };
