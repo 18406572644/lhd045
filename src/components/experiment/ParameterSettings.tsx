@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion';
-import { Stack, Text, Group, Slider, NumberInput, Button, Paper } from '@mantine/core';
-import { RotateCcw, Settings } from 'lucide-react';
+import { Stack, Text, Group, Slider, NumberInput, Button, Paper, Divider } from '@mantine/core';
+import { RotateCcw, Settings, TrendingUp } from 'lucide-react';
 import type { ParameterConfig } from '../../types';
 import { useExperimentStore } from '../../store/useExperimentStore';
+import { LineChart } from '../charts';
+import { runSimulation, hasSimulationModel } from '../../utils/simulationModels';
+import { useMemo } from 'react';
 
 interface ParameterSettingsProps {
   parameters: ParameterConfig[];
@@ -12,11 +15,30 @@ interface ParameterSettingsProps {
 }
 
 export const ParameterSettings: React.FC<ParameterSettingsProps> = ({ parameters, values, onChange, onReset }) => {
-  const { parameters: storeParams, setParameter: storeSetParameter, resetParameters: storeReset, settings } = useExperimentStore();
+  const {
+    parameters: storeParams,
+    setParameter: storeSetParameter,
+    resetParameters: storeReset,
+    settings,
+    currentExperiment,
+    currentStep,
+  } = useExperimentStore();
   
   const currentParams = values || storeParams;
   const setParameter = onChange || storeSetParameter;
   const resetParameters = onReset || storeReset;
+
+  const hasModel = currentExperiment ? hasSimulationModel(currentExperiment.id) : false;
+
+  const previewSimulation = useMemo(() => {
+    if (!currentExperiment || !hasModel) return null;
+    return runSimulation({
+      parameters: currentParams,
+      currentStep: Math.max(currentStep, 3),
+      elapsedTime: 60,
+      experimentId: currentExperiment.id,
+    });
+  }, [currentExperiment, currentParams, currentStep, hasModel]);
 
   if (parameters.length === 0) {
     return null;
@@ -115,6 +137,32 @@ export const ParameterSettings: React.FC<ParameterSettingsProps> = ({ parameters
               </motion.div>
             ))}
           </Stack>
+
+          {hasModel && previewSimulation && (
+            <>
+              <Divider my="sm" />
+              <Group gap="sm" mb="xs">
+                <TrendingUp size={16} color="#1E6FBA" />
+                <Text size="sm" fw={600}>参数影响预览</Text>
+              </Group>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: settings.theme === 'light' ? '#FFFFFF' : '#1E293B',
+                }}
+              >
+                <LineChart
+                  data={previewSimulation.lineChartData}
+                  lines={previewSimulation.lineChartSeries}
+                  height={140}
+                />
+              </Paper>
+              <Text size="xs" c="dimmed" ta="center">
+                拖动滑块调整参数，观察曲线变化
+              </Text>
+            </>
+          )}
         </Stack>
       </Paper>
     </motion.div>

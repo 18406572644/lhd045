@@ -116,6 +116,7 @@ export interface ExperimentRecord {
   parameters: Record<string, number>;
   observations: Observation[];
   data: Record<string, number | string>[];
+  chartSnapshots: ChartSnapshot[];
   conclusion?: string;
 }
 
@@ -196,4 +197,19 @@ export interface MockApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+}
+
+export interface ChartSnapshot {
+  id: string;
+  stepId: number;
+  stepTitle: string;
+  timestamp: string;
+  lineChartData: Record<string, number | string>[];
+  lineChartSeries: { key: string; color: string; name: string }[];
+  barChartData: Record<string, number | string>[];
+  barChartSeries: { key: string; color: string; name: string }[];
+  gaugeValues: { key: string; label: string; value: number; min: number; max: number; unit: string; color: string }[];
+  parameters: Record<string, number>;
+  elapsedTime: number;
+  title?: string;
 }

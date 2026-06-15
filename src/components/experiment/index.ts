@@ -6,5 +6,6 @@ export { SafetyNotes } from './SafetyNotes';
 export { ParameterSettings } from './ParameterSettings';
 export { StepDetail } from './StepDetail';
 export { PreStudyTab } from './PreStudyTab';
+export { RealTimeDataPanel } from './RealTimeDataPanel';
 export { ExperimentEditor } from './editor/ExperimentEditor';
 export * from './editor/types';

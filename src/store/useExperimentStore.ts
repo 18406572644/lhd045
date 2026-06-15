@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Experiment, ExperimentRecord, Observation, AppSettings } from '../types';
+import type { Experiment, ExperimentRecord, Observation, AppSettings, ChartSnapshot } from '../types';
 import { generateId } from '../utils/helpers';
 
 interface ExperimentState {
@@ -12,6 +12,7 @@ interface ExperimentState {
   parameters: Record<string, number>;
   observations: Observation[];
   data: Record<string, number | string>[];
+  chartSnapshots: ChartSnapshot[];
   records: ExperimentRecord[];
   favorites: string[];
   chemicalFavorites: string[];
@@ -33,6 +34,9 @@ interface ExperimentActions {
   resetParameters: () => void;
   addObservation: (observation: Omit<Observation, 'timestamp'>) => void;
   addDataPoint: (data: Record<string, number | string>) => void;
+  addChartSnapshot: (snapshot: Omit<ChartSnapshot, 'id' | 'timestamp'>) => void;
+  deleteChartSnapshot: (id: string) => void;
+  clearChartSnapshots: () => void;
   setRecords: (records: ExperimentRecord[]) => void;
   addRecord: (record: ExperimentRecord) => void;
   updateRecord: (id: string, updates: Partial<ExperimentRecord>) => void;
@@ -74,6 +78,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
       parameters: {},
       observations: [],
       data: [],
+      chartSnapshots: [],
       records: [],
       favorites: [],
       chemicalFavorites: [],
@@ -97,6 +102,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
             parameters: defaultParams,
             observations: [],
             data: [],
+            chartSnapshots: [],
             isPlaying: false
           });
         } else {
@@ -106,6 +112,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
             parameters: {},
             observations: [],
             data: [],
+            chartSnapshots: [],
             isPlaying: false
           });
         }
@@ -154,6 +161,20 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
       addDataPoint: (data) => set((state) => ({
         data: [...state.data, data]
       })),
+
+      addChartSnapshot: (snapshot) => set((state) => ({
+        chartSnapshots: [...state.chartSnapshots, {
+          ...snapshot,
+          id: generateId(),
+          timestamp: new Date().toISOString()
+        }]
+      })),
+
+      deleteChartSnapshot: (id) => set((state) => ({
+        chartSnapshots: state.chartSnapshots.filter(s => s.id !== id)
+      })),
+
+      clearChartSnapshots: () => set({ chartSnapshots: [] }),
 
       setRecords: (records) => set({ records }),
 
@@ -211,6 +232,7 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
             parameters: defaultParams,
             observations: [],
             data: [],
+            chartSnapshots: [],
             isPlaying: false
           });
         }

@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Select, Card, Badge, Tabs, Table, ScrollArea, Progress, Alert, RingProgress } from '@mantine/core';
-import { FileText, Download, Printer, Clock, FlaskConical, BookOpen, CheckCircle, AlertTriangle, TrendingUp, Lightbulb, CheckCircle2, XCircle, BarChart3 } from 'lucide-react';
+import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Select, Card, Badge, Tabs, Table, ScrollArea, Progress, Alert, RingProgress, ActionIcon } from '@mantine/core';
+import { FileText, Download, Printer, Clock, FlaskConical, BookOpen, CheckCircle, AlertTriangle, TrendingUp, Lightbulb, CheckCircle2, XCircle, BarChart3, Camera } from 'lucide-react';
 import { useExperimentStore } from '../store/useExperimentStore';
 import { experiments } from '../data/experiments';
 import { generateExperimentReportHtml, formatDate, downloadFile, analyzeExperiment } from '../utils/helpers';
 import { mockApi } from '../utils/api';
+import { LineChart, BarChart, GaugeChart } from '../components/charts';
+import { runSimulation } from '../utils/simulationModels';
 
 export default function Report() {
   const { records, setLoading, setError } = useExperimentStore();
@@ -226,7 +228,10 @@ export default function Report() {
                       <Tabs.Tab value="data" leftSection={<FileText size={14} />}>
                         数据记录
                       </Tabs.Tab>
-                      <Tabs.Tab value="analysis" leftSection={<BarChart3 size={14} />}>
+                      <Tabs.Tab value="charts" leftSection={<BarChart3 size={14} />}>
+                        数据图表
+                      </Tabs.Tab>
+                      <Tabs.Tab value="analysis" leftSection={<TrendingUp size={14} />}>
                         智能分析
                       </Tabs.Tab>
                     </Tabs.List>
@@ -316,6 +321,107 @@ export default function Report() {
                           </Table>
                         </ScrollArea>
                       )}
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="charts" pt="md">
+                      {(() => {
+                        const snapshots = (selectedRecord as any).chartSnapshots || [];
+                        const summarySim = runSimulation({
+                          parameters: selectedRecord.parameters,
+                          currentStep: experiment.steps.length - 1,
+                          elapsedTime: 120,
+                          experimentId: experiment.id,
+                        });
+
+                        return (
+                          <Stack gap="lg">
+                            <Paper withBorder radius="md" p="md">
+                              <Group gap="sm" mb="md">
+                                <TrendingUp size={20} color="#1E6FBA" />
+                                <Text fw={700}>实验数据趋势汇总</Text>
+                              </Group>
+                              <LineChart
+                                data={summarySim.lineChartData}
+                                lines={summarySim.lineChartSeries}
+                                height={260}
+                              />
+                            </Paper>
+
+                            {summarySim.barChartData.length > 0 && (
+                              <Paper withBorder radius="md" p="md">
+                                <Group gap="sm" mb="md">
+                                  <BarChart3 size={20} color="#10B981" />
+                                  <Text fw={700}>关键时间点数据对比</Text>
+                                </Group>
+                                <BarChart
+                                  data={summarySim.barChartData}
+                                  bars={summarySim.barChartSeries}
+                                  height={240}
+                                />
+                              </Paper>
+                            )}
+
+                            {snapshots.length > 0 ? (
+                              <Paper withBorder radius="md" p="md">
+                                <Group gap="sm" mb="md">
+                                  <Camera size={20} color="#8B5CF6" />
+                                  <Text fw={700}>快照记录 ({snapshots.length})</Text>
+                                </Group>
+                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                                  {snapshots.map((snap: any) => (
+                                    <Card key={snap.id} withBorder radius="md" p="md">
+                                      <Stack gap="xs">
+                                        <Group justify="space-between">
+                                          <Stack gap={0}>
+                                            <Group gap="xs">
+                                              <Badge size="xs" color="labBlue">
+                                                步骤 {snap.stepId}
+                                              </Badge>
+                                              <Text size="sm" fw={500}>
+                                                {snap.stepTitle}
+                                              </Text>
+                                            </Group>
+                                            <Text size="xs" c="dimmed">
+                                              {formatDate(snap.timestamp)}
+                                            </Text>
+                                          </Stack>
+                                        </Group>
+                                        <LineChart
+                                          data={snap.lineChartData}
+                                          lines={snap.lineChartSeries}
+                                          height={150}
+                                        />
+                                        <SimpleGrid cols={snap.gaugeValues?.length > 2 ? 3 : 2}>
+                                          {snap.gaugeValues?.map((g: any) => (
+                                            <div key={g.key} style={{ display: 'flex', justifyContent: 'center' }}>
+                                              <GaugeChart
+                                                value={g.value}
+                                                min={g.min}
+                                                max={g.max}
+                                                unit={g.unit}
+                                                label={g.label}
+                                                color={g.color}
+                                                size={100}
+                                              />
+                                            </div>
+                                          ))}
+                                        </SimpleGrid>
+                                      </Stack>
+                                    </Card>
+                                  ))}
+                                </SimpleGrid>
+                              </Paper>
+                            ) : (
+                              <Paper withBorder radius="md" p="md">
+                                <Stack align="center" gap="sm" py="md">
+                                  <Camera size={32} color="#9CA3AF" />
+                                  <Text c="dimmed">实验过程中未保存图表快照</Text>
+                                </Stack>
+                              </Paper>
+                            )}
+                          </Stack>
+                        );
+                      })()}
                     </Tabs.Panel>
 
                     <Tabs.Panel value="analysis" pt="md">

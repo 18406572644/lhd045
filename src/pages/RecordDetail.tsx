@@ -9,7 +9,7 @@ import { useDisclosure } from '@mantine/hooks';
 import {
   ArrowLeft, Edit, Trash2, Download, Clock, BookOpen,
   FlaskConical, CheckCircle, AlertCircle, FileText,
-  Settings, Lightbulb, Clipboard, Plus, Save
+  Settings, Lightbulb, Clipboard, Plus, Save, Camera, TrendingUp, BarChart3
 } from 'lucide-react';
 import { Loading } from '../components/common/Loading';
 import { useExperimentStore } from '../store/useExperimentStore';
@@ -17,6 +17,8 @@ import { experiments } from '../data/experiments';
 import { formatDate, downloadFile, generateExperimentReportHtml } from '../utils/helpers';
 import { mockApi } from '../utils/api';
 import type { ExperimentRecord, Experiment } from '../types';
+import { LineChart, BarChart, GaugeChart } from '../components/charts';
+import { runSimulation } from '../utils/simulationModels';
 
 export default function RecordDetail() {
   const { id } = useParams<{ id: string }>();
@@ -342,6 +344,9 @@ export default function RecordDetail() {
                 <Tabs.Tab value="data" leftSection={<Clipboard size={14} />}>
                   数据记录 ({record.data.length})
                 </Tabs.Tab>
+                <Tabs.Tab value="charts" leftSection={<TrendingUp size={14} />}>
+                  数据图表 ({((record as any).chartSnapshots || []).length})
+                </Tabs.Tab>
                 {experiment && (
                   <Tabs.Tab value="steps" leftSection={<Lightbulb size={14} />}>
                     实验步骤 ({experiment.steps.length})
@@ -429,6 +434,111 @@ export default function RecordDetail() {
                     </Table>
                   </ScrollArea>
                 )}
+              </Tabs.Panel>
+
+              <Tabs.Panel value="charts" pt="md">
+                {(() => {
+                  const snapshots = (record as any).chartSnapshots || [];
+                  const hasSim = experiment ? true : false;
+
+                  return (
+                    <Stack gap="lg">
+                      {hasSim && experiment && (
+                        <>
+                          <Paper withBorder radius="md" p="md">
+                            <Group gap="sm" mb="md">
+                              <TrendingUp size={20} color="#1E6FBA" />
+                              <Text fw={700}>实验数据趋势</Text>
+                            </Group>
+                            <LineChart
+                              data={(() => {
+                                const sim = runSimulation({
+                                  parameters: record.parameters,
+                                  currentStep: experiment.steps.length - 1,
+                                  elapsedTime: 120,
+                                  experimentId: experiment.id,
+                                });
+                                return sim.lineChartData;
+                              })()}
+                              lines={(() => {
+                                const sim = runSimulation({
+                                  parameters: record.parameters,
+                                  currentStep: experiment.steps.length - 1,
+                                  elapsedTime: 120,
+                                  experimentId: experiment.id,
+                                });
+                                return sim.lineChartSeries;
+                              })()}
+                              height={260}
+                            />
+                          </Paper>
+                        </>
+                      )}
+
+                      {snapshots.length > 0 ? (
+                        <Paper withBorder radius="md" p="md">
+                          <Group gap="sm" mb="md">
+                            <Camera size={20} color="#8B5CF6" />
+                            <Text fw={700}>实验快照 ({snapshots.length})</Text>
+                          </Group>
+                          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                            {snapshots.map((snap: any) => (
+                              <Card key={snap.id} withBorder radius="md" p="md">
+                                <Stack gap="xs">
+                                  <Group justify="space-between">
+                                    <Stack gap={0}>
+                                      <Group gap="xs">
+                                        <Badge size="xs" color="labBlue">
+                                          步骤 {snap.stepId}
+                                        </Badge>
+                                        <Text size="sm" fw={500}>
+                                          {snap.stepTitle}
+                                        </Text>
+                                      </Group>
+                                      <Text size="xs" c="dimmed">
+                                        {formatDate(snap.timestamp)}
+                                      </Text>
+                                    </Stack>
+                                  </Group>
+                                  <LineChart
+                                    data={snap.lineChartData}
+                                    lines={snap.lineChartSeries}
+                                    height={160}
+                                  />
+                                  <SimpleGrid cols={snap.gaugeValues?.length > 2 ? 3 : 2}>
+                                    {snap.gaugeValues?.map((g: any) => (
+                                      <div key={g.key} style={{ display: 'flex', justifyContent: 'center' }}>
+                                        <GaugeChart
+                                          value={g.value}
+                                          min={g.min}
+                                          max={g.max}
+                                          unit={g.unit}
+                                          label={g.label}
+                                          color={g.color}
+                                          size={100}
+                                        />
+                                      </div>
+                                    ))}
+                                  </SimpleGrid>
+                                </Stack>
+                              </Card>
+                            ))}
+                          </SimpleGrid>
+                        </Paper>
+                      ) : (
+                        <Paper withBorder radius="md" p="md">
+                          <Stack align="center" gap="sm" py="md">
+                            <Camera size={32} color="#9CA3AF" />
+                            <Text c="dimmed">本次实验未保存图表快照</Text>
+                            <Text size="sm" c="dimmed">
+                              在实验过程中点击数据面板上的相机图标可以保存图表快照
+                            </Text>
+                          </Stack>
+                        </Paper>
+                      )}
+                    </Stack>
+                  );
+                })()}
               </Tabs.Panel>
 
               {experiment && (

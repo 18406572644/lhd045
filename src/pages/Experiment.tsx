@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Container, Title, Text, Group, Stack, Button, Paper, Divider, Badge, Alert, SimpleGrid, Tabs, Tooltip } from '@mantine/core';
 import { ArrowLeft, Play, Pause, RotateCcw, Save, AlertTriangle, BookOpen, GraduationCap, FlaskConical, ExternalLink } from 'lucide-react';
-import { ExperimentScene, StepNavigation, ChemicalEquation, SafetyNotes, ParameterSettings, StepDetail, PreStudyTab } from '../components/experiment';
+import { ExperimentScene, StepNavigation, ChemicalEquation, SafetyNotes, ParameterSettings, StepDetail, PreStudyTab, RealTimeDataPanel } from '../components/experiment';
 import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
@@ -24,6 +24,7 @@ export default function Experiment() {
     parameters,
     observations,
     data,
+    chartSnapshots,
     preStudyCompleted,
     quizPassed,
     customExperiments,
@@ -141,6 +142,7 @@ export default function Experiment() {
         parameters,
         observations,
         data,
+        chartSnapshots,
         conclusion: ''
       };
 
@@ -293,15 +295,26 @@ export default function Experiment() {
 
             <Tabs.Panel value="experiment" pt="lg">
               <Stack gap="lg">
-                <Paper withBorder radius="lg" p="lg">
-                  <ExperimentScene
-                    experiment={currentExperiment}
+                <Group align="flex-start" gap="lg" style={{ alignItems: 'stretch' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Paper withBorder radius="lg" p="lg">
+                      <ExperimentScene
+                        experiment={currentExperiment}
+                        currentStep={currentStep}
+                        animationType={currentStepData.animationType}
+                        animationData={currentStepData.animationData}
+                        parameters={parameters}
+                      />
+                    </Paper>
+                  </div>
+                  <RealTimeDataPanel
+                    experimentId={currentExperiment.id}
                     currentStep={currentStep}
-                    animationType={currentStepData.animationType}
-                    animationData={currentStepData.animationData}
+                    currentStepTitle={currentStepData.title}
                     parameters={parameters}
+                    isPlaying={isPlaying}
                   />
-                </Paper>
+                </Group>
 
                 <Stack gap="md">
                   <Group justify="space-between" align="flex-end" wrap="wrap">
