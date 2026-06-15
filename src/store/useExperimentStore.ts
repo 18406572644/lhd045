@@ -1,0 +1,198 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Experiment, ExperimentRecord, Observation, AppSettings } from '../types';
+
+interface ExperimentState {
+  experiments: Experiment[];
+  currentExperiment: Experiment | null;
+  currentStep: number;
+  isPlaying: boolean;
+  parameters: Record<string, number>;
+  observations: Observation[];
+  data: Record<string, number | string>[];
+  records: ExperimentRecord[];
+  favorites: string[];
+  settings: AppSettings;
+  loading: boolean;
+  error: string | null;
+}
+
+interface ExperimentActions {
+  setExperiments: (experiments: Experiment[]) => void;
+  setCurrentExperiment: (experiment: Experiment | null) => void;
+  setCurrentStep: (step: number) => void;
+  nextStep: () => void;
+  prevStep: () => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  setParameter: (id: string, value: number) => void;
+  resetParameters: () => void;
+  addObservation: (observation: Omit<Observation, 'timestamp'>) => void;
+  addDataPoint: (data: Record<string, number | string>) => void;
+  setRecords: (records: ExperimentRecord[]) => void;
+  addRecord: (record: ExperimentRecord) => void;
+  updateRecord: (id: string, updates: Partial<ExperimentRecord>) => void;
+  deleteRecord: (id: string) => void;
+  setFavorites: (favorites: string[]) => void;
+  toggleFavorite: (experimentId: string) => void;
+  updateSettings: (settings: Partial<AppSettings>) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  resetCurrentExperiment: () => void;
+}
+
+const initialSettings: AppSettings = {
+  theme: 'light',
+  autoPlaySpeed: 1,
+  showAnimations: true
+};
+
+export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
+  persist(
+    (set, get) => ({
+      experiments: [],
+      currentExperiment: null,
+      currentStep: 0,
+      isPlaying: false,
+      parameters: {},
+      observations: [],
+      data: [],
+      records: [],
+      favorites: [],
+      settings: initialSettings,
+      loading: false,
+      error: null,
+
+      setExperiments: (experiments) => set({ experiments }),
+
+      setCurrentExperiment: (experiment) => {
+        if (experiment) {
+          const defaultParams: Record<string, number> = {};
+          experiment.parameters.forEach(p => {
+            defaultParams[p.id] = p.default;
+          });
+          set({
+            currentExperiment: experiment,
+            currentStep: 0,
+            parameters: defaultParams,
+            observations: [],
+            data: [],
+            isPlaying: false
+          });
+        } else {
+          set({
+            currentExperiment: null,
+            currentStep: 0,
+            parameters: {},
+            observations: [],
+            data: [],
+            isPlaying: false
+          });
+        }
+      },
+
+      setCurrentStep: (step) => set({ currentStep: step }),
+
+      nextStep: () => {
+        const { currentExperiment, currentStep } = get();
+        if (currentExperiment && currentStep < currentExperiment.steps.length - 1) {
+          set({ currentStep: currentStep + 1 });
+        }
+      },
+
+      prevStep: () => {
+        const { currentStep } = get();
+        if (currentStep > 0) {
+          set({ currentStep: currentStep - 1 });
+        }
+      },
+
+      setIsPlaying: (isPlaying) => set({ isPlaying }),
+
+      setParameter: (id, value) => set((state) => ({
+        parameters: { ...state.parameters, [id]: value }
+      })),
+
+      resetParameters: () => {
+        const { currentExperiment } = get();
+        if (currentExperiment) {
+          const defaultParams: Record<string, number> = {};
+          currentExperiment.parameters.forEach(p => {
+            defaultParams[p.id] = p.default;
+          });
+          set({ parameters: defaultParams });
+        }
+      },
+
+      addObservation: (observation) => set((state) => ({
+        observations: [...state.observations, {
+          ...observation,
+          timestamp: new Date().toISOString()
+        }]
+      })),
+
+      addDataPoint: (data) => set((state) => ({
+        data: [...state.data, data]
+      })),
+
+      setRecords: (records) => set({ records }),
+
+      addRecord: (record) => set((state) => ({
+        records: [record, ...state.records]
+      })),
+
+      updateRecord: (id, updates) => set((state) => ({
+        records: state.records.map(r =>
+          r.id === id ? { ...r, ...updates } : r
+        )
+      })),
+
+      deleteRecord: (id) => set((state) => ({
+        records: state.records.filter(r => r.id !== id)
+      })),
+
+      setFavorites: (favorites) => set({ favorites }),
+
+      toggleFavorite: (experimentId) => set((state) => {
+        const isFavorite = state.favorites.includes(experimentId);
+        return {
+          favorites: isFavorite
+            ? state.favorites.filter(id => id !== experimentId)
+            : [...state.favorites, experimentId]
+        };
+      }),
+
+      updateSettings: (settings) => set((state) => ({
+        settings: { ...state.settings, ...settings }
+      })),
+
+      setLoading: (loading) => set({ loading }),
+
+      setError: (error) => set({ error }),
+
+      resetCurrentExperiment: () => {
+        const { currentExperiment } = get();
+        if (currentExperiment) {
+          const defaultParams: Record<string, number> = {};
+          currentExperiment.parameters.forEach(p => {
+            defaultParams[p.id] = p.default;
+          });
+          set({
+            currentStep: 0,
+            parameters: defaultParams,
+            observations: [],
+            data: [],
+            isPlaying: false
+          });
+        }
+      }
+    }),
+    {
+      name: 'chemistry-lab-storage',
+      partialize: (state) => ({
+        records: state.records,
+        favorites: state.favorites,
+        settings: state.settings
+      })
+    }
+  )
+);
