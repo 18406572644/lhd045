@@ -62,6 +62,25 @@ export interface ExperimentStep {
   tips: string[];
 }
 
+export interface PreKnowledgeSection {
+  id: string;
+  title: string;
+  content: string;
+  type: 'concept' | 'principle' | 'instrument' | 'safety';
+}
+
+export interface QuizOption {
+  label: string;
+  isCorrect: boolean;
+}
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: QuizOption[];
+  explanation: string;
+}
+
 export interface Experiment {
   id: string;
   name: string;
@@ -77,6 +96,9 @@ export interface Experiment {
   equations: ChemicalEquation[];
   parameters: ParameterConfig[];
   notes: SafetyNote[];
+  preKnowledge: PreKnowledgeSection[];
+  quizQuestions: QuizQuestion[];
+  quizRequired?: boolean;
 }
 
 export interface Observation {

@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Container, Title, Text, Group, Stack, Button, Paper, Divider, Badge, Alert, SimpleGrid } from '@mantine/core';
-import { ArrowLeft, Play, Pause, RotateCcw, Save, AlertTriangle, BookOpen } from 'lucide-react';
-import { ExperimentScene, StepNavigation, ChemicalEquation, SafetyNotes, ParameterSettings, StepDetail } from '../components/experiment';
+import { Container, Title, Text, Group, Stack, Button, Paper, Divider, Badge, Alert, SimpleGrid, Tabs } from '@mantine/core';
+import { ArrowLeft, Play, Pause, RotateCcw, Save, AlertTriangle, BookOpen, GraduationCap, FlaskConical } from 'lucide-react';
+import { ExperimentScene, StepNavigation, ChemicalEquation, SafetyNotes, ParameterSettings, StepDetail, PreStudyTab } from '../components/experiment';
 import { Loading } from '../components/common/Loading';
 import { useMockApi } from '../utils/api';
 import { mockApi } from '../utils/api';
@@ -23,6 +23,8 @@ export default function Experiment() {
     parameters,
     observations,
     data,
+    preStudyCompleted,
+    quizPassed,
     setCurrentExperiment,
     setCurrentStep,
     nextStep,
@@ -38,6 +40,8 @@ export default function Experiment() {
     setError,
     error
   } = useExperimentStore();
+
+  const [activeTab, setActiveTab] = useState<string | null>('prestudy');
 
   const { loading, data: experimentData, refetch } = useMockApi(
     () => id ? mockApi.getExperiment(id) : Promise.reject('No ID'),
@@ -126,6 +130,17 @@ export default function Experiment() {
   const progress = calculateProgress(currentStep, currentExperiment.steps.length);
   const currentStepData = currentExperiment.steps[currentStep];
 
+  const canEnterExperiment = () => {
+    const isPreStudyDone = preStudyCompleted[currentExperiment.id] ?? false;
+    if (!isPreStudyDone) return false;
+    if (currentExperiment.quizRequired && !(quizPassed[currentExperiment.id] ?? false)) return false;
+    return true;
+  };
+
+  const handleEnterExperiment = () => {
+    setActiveTab('experiment');
+  };
+
   return (
     <Container size="xl" py="xl">
       <motion.div
@@ -196,111 +211,142 @@ export default function Experiment() {
             </Alert>
           )}
 
-          <Paper withBorder radius="lg" p="lg">
-            <ExperimentScene
-              experiment={currentExperiment}
-              currentStep={currentStep}
-              animationType={currentStepData.animationType}
-              animationData={currentStepData.animationData}
-              parameters={parameters}
-            />
-          </Paper>
+          <Tabs value={activeTab} onChange={setActiveTab}>
+            <Tabs.List>
+              <Tabs.Tab value="prestudy" leftSection={<GraduationCap size={16} />}>
+                预习
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="experiment"
+                leftSection={<FlaskConical size={16} />}
+                disabled={!canEnterExperiment()}
+              >
+                实验
+                {!canEnterExperiment() && (
+                  <Badge size="xs" color="orange" ml="xs" variant="filled">
+                    需预习
+                  </Badge>
+                )}
+              </Tabs.Tab>
+            </Tabs.List>
 
-          <Stack gap="md">
-            <Group justify="space-between" align="flex-end" wrap="wrap">
-              <Stack gap={0}>
-                <Group gap="sm">
-                  <Text size="sm" c="dimmed">步骤</Text>
-                  <Text fw={600} size="lg" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    {currentStep + 1} / {currentExperiment.steps.length}
-                  </Text>
-                </Group>
-                <Text size="sm" c="dimmed">进度 {progress}%</Text>
-              </Stack>
-              <Group>
-                <Button
-                  variant="light"
-                  onClick={prevStep}
-                  disabled={currentStep === 0}
-                >
-                  上一步
-                </Button>
-                <Button
-                  onClick={nextStep}
-                  disabled={currentStep === currentExperiment.steps.length - 1}
-                >
-                  下一步
-                </Button>
-              </Group>
-            </Group>
-
-            <StepNavigation
-              steps={currentExperiment.steps}
-              currentStep={currentStep}
-              onStepClick={setCurrentStep}
-              progress={progress}
-            />
-          </Stack>
-
-          <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-            <Stack gap="md" style={{ gridColumn: 'span 2' }}>
-              <StepDetail
-                step={currentStepData}
-                parameters={parameters}
-                onAddObservation={(content) => addObservation({ stepId: currentStep + 1, content })}
-                onAddDataPoint={addDataPoint}
+            <Tabs.Panel value="prestudy" pt="lg">
+              <PreStudyTab
+                experiment={currentExperiment}
+                onEnterExperiment={handleEnterExperiment}
               />
+            </Tabs.Panel>
 
-              {currentExperiment.equations.length > 0 && (
+            <Tabs.Panel value="experiment" pt="lg">
+              <Stack gap="lg">
                 <Paper withBorder radius="lg" p="lg">
-                  <Group gap="sm" mb="md">
-                    <BookOpen size={20} color="#1E6FBA" />
-                    <Title order={3} size="h4">化学反应方程式</Title>
-                  </Group>
-                  <Stack gap="md">
-                    {currentExperiment.equations.map((eq, idx) => (
-                      <ChemicalEquation key={eq.id} equation={eq} delay={idx * 0.2} />
-                    ))}
-                  </Stack>
+                  <ExperimentScene
+                    experiment={currentExperiment}
+                    currentStep={currentStep}
+                    animationType={currentStepData.animationType}
+                    animationData={currentStepData.animationData}
+                    parameters={parameters}
+                  />
                 </Paper>
-              )}
-            </Stack>
 
-            <Stack gap="md">
-              <ParameterSettings
-                parameters={currentExperiment.parameters}
-                values={parameters}
-                onChange={setParameter}
-                onReset={resetParameters}
-              />
+                <Stack gap="md">
+                  <Group justify="space-between" align="flex-end" wrap="wrap">
+                    <Stack gap={0}>
+                      <Group gap="sm">
+                        <Text size="sm" c="dimmed">步骤</Text>
+                        <Text fw={600} size="lg" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                          {currentStep + 1} / {currentExperiment.steps.length}
+                        </Text>
+                      </Group>
+                      <Text size="sm" c="dimmed">进度 {progress}%</Text>
+                    </Stack>
+                    <Group>
+                      <Button
+                        variant="light"
+                        onClick={prevStep}
+                        disabled={currentStep === 0}
+                      >
+                        上一步
+                      </Button>
+                      <Button
+                        onClick={nextStep}
+                        disabled={currentStep === currentExperiment.steps.length - 1}
+                      >
+                        下一步
+                      </Button>
+                    </Group>
+                  </Group>
 
-              <SafetyNotes notes={currentExperiment.notes} />
-            </Stack>
-          </SimpleGrid>
+                  <StepNavigation
+                    steps={currentExperiment.steps}
+                    currentStep={currentStep}
+                    onStepClick={setCurrentStep}
+                    progress={progress}
+                  />
+                </Stack>
 
-          <Divider />
+                <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+                  <Stack gap="md" style={{ gridColumn: 'span 2' }}>
+                    <StepDetail
+                      step={currentStepData}
+                      parameters={parameters}
+                      onAddObservation={(content) => addObservation({ stepId: currentStep + 1, content })}
+                      onAddDataPoint={addDataPoint}
+                    />
 
-          <Paper withBorder radius="lg" p="lg">
-            <Title order={3} size="h4" mb="md">实验材料清单</Title>
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <div>
-                <Text fw={600} mb="sm" c="#1E6FBA">实验器材</Text>
-                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  {currentExperiment.equipment.map((item, idx) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <Text fw={600} mb="sm" c="#10B981">实验药品</Text>
-                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  {currentExperiment.materials.map((item, idx) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </SimpleGrid>
-          </Paper>
+                    {currentExperiment.equations.length > 0 && (
+                      <Paper withBorder radius="lg" p="lg">
+                        <Group gap="sm" mb="md">
+                          <BookOpen size={20} color="#1E6FBA" />
+                          <Title order={3} size="h4">化学反应方程式</Title>
+                        </Group>
+                        <Stack gap="md">
+                          {currentExperiment.equations.map((eq, idx) => (
+                            <ChemicalEquation key={eq.id} equation={eq} delay={idx * 0.2} />
+                          ))}
+                        </Stack>
+                      </Paper>
+                    )}
+                  </Stack>
+
+                  <Stack gap="md">
+                    <ParameterSettings
+                      parameters={currentExperiment.parameters}
+                      values={parameters}
+                      onChange={setParameter}
+                      onReset={resetParameters}
+                    />
+
+                    <SafetyNotes notes={currentExperiment.notes} />
+                  </Stack>
+                </SimpleGrid>
+
+                <Divider />
+
+                <Paper withBorder radius="lg" p="lg">
+                  <Title order={3} size="h4" mb="md">实验材料清单</Title>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <div>
+                      <Text fw={600} mb="sm" c="#1E6FBA">实验器材</Text>
+                      <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                        {currentExperiment.equipment.map((item, idx) => (
+                          <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <Text fw={600} mb="sm" c="#10B981">实验药品</Text>
+                      <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                        {currentExperiment.materials.map((item, idx) => (
+                          <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </SimpleGrid>
+                </Paper>
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
         </Stack>
       </motion.div>
     </Container>

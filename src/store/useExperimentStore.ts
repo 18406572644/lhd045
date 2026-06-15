@@ -15,6 +15,8 @@ interface ExperimentState {
   settings: AppSettings;
   loading: boolean;
   error: string | null;
+  preStudyCompleted: Record<string, boolean>;
+  quizPassed: Record<string, boolean>;
 }
 
 interface ExperimentActions {
@@ -38,6 +40,8 @@ interface ExperimentActions {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   resetCurrentExperiment: () => void;
+  markPreStudyCompleted: (experimentId: string) => void;
+  setQuizPassed: (experimentId: string, passed: boolean) => void;
 }
 
 const initialSettings: AppSettings = {
@@ -65,6 +69,8 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
       settings: initialSettings,
       loading: false,
       error: null,
+      preStudyCompleted: {},
+      quizPassed: {},
 
       setExperiments: (experiments) => set({ experiments }),
 
@@ -188,14 +194,24 @@ export const useExperimentStore = create<ExperimentState & ExperimentActions>()(
             isPlaying: false
           });
         }
-      }
+      },
+
+      markPreStudyCompleted: (experimentId) => set((state) => ({
+        preStudyCompleted: { ...state.preStudyCompleted, [experimentId]: true }
+      })),
+
+      setQuizPassed: (experimentId, passed) => set((state) => ({
+        quizPassed: { ...state.quizPassed, [experimentId]: passed }
+      }))
     }),
     {
       name: 'chemistry-lab-storage',
       partialize: (state) => ({
         records: state.records,
         favorites: state.favorites,
-        settings: state.settings
+        settings: state.settings,
+        preStudyCompleted: state.preStudyCompleted,
+        quizPassed: state.quizPassed
       })
     }
   )
