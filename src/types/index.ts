@@ -164,6 +164,34 @@ export interface AppSettings {
   autoAdjustViewAngle: boolean;
 }
 
+export interface DataAnalysisResult {
+  dataPointId: string;
+  dataPointLabel: string;
+  measuredValue: number;
+  expectedValue: number;
+  unit: string;
+  errorPercentage: number;
+  isWithinRange: boolean;
+  acceptableRange: { min: number; max: number };
+  errorSources: string[];
+}
+
+export interface OperationNormalityCheck {
+  id: string;
+  title: string;
+  description: string;
+  isNormal: boolean;
+  suggestion?: string;
+}
+
+export interface ExperimentAnalysis {
+  overallScore: number;
+  dataAnalysis: DataAnalysisResult[];
+  operationChecks: OperationNormalityCheck[];
+  summary: string;
+  improvements: string[];
+}
+
 export interface MockApiResponse<T> {
   success: boolean;
   data?: T;

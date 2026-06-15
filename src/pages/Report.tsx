@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Select, Card, Badge, Tabs, Table, ScrollArea } from '@mantine/core';
-import { FileText, Download, Printer, Clock, FlaskConical, BookOpen, CheckCircle } from 'lucide-react';
+import { Container, Title, Text, Group, Stack, Button, Paper, SimpleGrid, Select, Card, Badge, Tabs, Table, ScrollArea, Progress, Alert, RingProgress } from '@mantine/core';
+import { FileText, Download, Printer, Clock, FlaskConical, BookOpen, CheckCircle, AlertTriangle, TrendingUp, Lightbulb, CheckCircle2, XCircle, BarChart3 } from 'lucide-react';
 import { useExperimentStore } from '../store/useExperimentStore';
 import { experiments } from '../data/experiments';
-import { generateExperimentReportHtml, formatDate, downloadFile } from '../utils/helpers';
+import { generateExperimentReportHtml, formatDate, downloadFile, analyzeExperiment } from '../utils/helpers';
 import { mockApi } from '../utils/api';
 
 export default function Report() {
@@ -17,6 +17,11 @@ export default function Report() {
   const experiment = selectedRecord
     ? experiments.find(e => e.id === selectedRecord.experimentId)
     : null;
+
+  const analysis = useMemo(() => {
+    if (!selectedRecord || !experiment) return null;
+    return analyzeExperiment(experiment, selectedRecord);
+  }, [selectedRecord, experiment]);
 
   const completedRecords = records.filter(r => r.endTime);
 
@@ -36,7 +41,8 @@ export default function Report() {
       })),
       observations: selectedRecord.observations,
       data: selectedRecord.data,
-      conclusion: selectedRecord.conclusion || ''
+      conclusion: selectedRecord.conclusion || '',
+      analysis: analysis || undefined
     };
 
     const html = generateExperimentReportHtml(reportData);
@@ -60,7 +66,8 @@ export default function Report() {
       })),
       observations: selectedRecord.observations,
       data: selectedRecord.data,
-      conclusion: selectedRecord.conclusion || ''
+      conclusion: selectedRecord.conclusion || '',
+      analysis: analysis || undefined
     };
 
     const html = generateExperimentReportHtml(reportData);
@@ -219,6 +226,9 @@ export default function Report() {
                       <Tabs.Tab value="data" leftSection={<FileText size={14} />}>
                         数据记录
                       </Tabs.Tab>
+                      <Tabs.Tab value="analysis" leftSection={<BarChart3 size={14} />}>
+                        智能分析
+                      </Tabs.Tab>
                     </Tabs.List>
 
                     <Tabs.Panel value="overview" pt="md">
@@ -305,6 +315,162 @@ export default function Report() {
                             </Table.Tbody>
                           </Table>
                         </ScrollArea>
+                      )}
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="analysis" pt="md">
+                      {analysis ? (
+                        <Stack gap="lg">
+                          <Paper withBorder radius="md" p="lg" style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%)' }}>
+                            <Group justify="space-between" align="flex-start">
+                              <Stack gap="sm">
+                                <Group gap="sm">
+                                  <TrendingUp size={24} color="#1E6FBA" />
+                                  <Text fw={700} size="xl" c="#1E6FBA">实验数据分析评分</Text>
+                                </Group>
+                                <Text size="sm" c="dimmed">基于实验数据和操作规范的综合评估</Text>
+                              </Stack>
+                              <RingProgress
+                                size={100}
+                                thickness={10}
+                                sections={[{ value: analysis.overallScore, color: analysis.overallScore >= 70 ? '#10B981' : analysis.overallScore >= 50 ? '#F59E0B' : '#EF4444' }]}
+                                label={
+                                  <Text size="xl" fw={700} c={analysis.overallScore >= 70 ? '#10B981' : analysis.overallScore >= 50 ? '#F59E0B' : '#EF4444'}>
+                                    {analysis.overallScore}
+                                  </Text>
+                                }
+                              />
+                            </Group>
+                          </Paper>
+
+                          <Alert
+                            icon={<Lightbulb size={20} />}
+                            title="分析总结"
+                            color={analysis.overallScore >= 70 ? 'green' : analysis.overallScore >= 50 ? 'yellow' : 'red'}
+                            variant="light"
+                          >
+                            <Text>{analysis.summary}</Text>
+                          </Alert>
+
+                          <Paper withBorder radius="md" p="md">
+                            <Group gap="sm" mb="md">
+                              <BarChart3 size={20} color="#1E6FBA" />
+                              <Text fw={700} size="lg">数据误差分析</Text>
+                            </Group>
+                            <Stack gap="md">
+                              {analysis.dataAnalysis.map((item, idx) => (
+                                <Card key={idx} withBorder radius="sm" p="md">
+                                  <Stack gap="sm">
+                                    <Group justify="space-between">
+                                      <Group gap="sm">
+                                        {item.isWithinRange ? (
+                                          <CheckCircle2 size={18} color="#10B981" />
+                                        ) : (
+                                          <XCircle size={18} color="#EF4444" />
+                                        )}
+                                        <Text fw={600}>{item.dataPointLabel}</Text>
+                                        <Badge color={item.isWithinRange ? 'green' : 'red'} variant="light">
+                                          {item.isWithinRange ? '正常' : '异常'}
+                                        </Badge>
+                                      </Group>
+                                      <Text size="sm" fw={600} c={item.isWithinRange ? 'green' : 'red'}>
+                                        误差: {item.errorPercentage}%
+                                      </Text>
+                                    </Group>
+                                    
+                                    <SimpleGrid cols={3}>
+                                      <div>
+                                        <Text size="xs" c="dimmed">测量值</Text>
+                                        <Text fw={600}>{item.measuredValue} {item.unit}</Text>
+                                      </div>
+                                      <div>
+                                        <Text size="xs" c="dimmed">理论值</Text>
+                                        <Text fw={600}>{item.expectedValue} {item.unit}</Text>
+                                      </div>
+                                      <div>
+                                        <Text size="xs" c="dimmed">允许范围</Text>
+                                        <Text fw={600}>{item.acceptableRange.min.toFixed(2)} ~ {item.acceptableRange.max.toFixed(2)} {item.unit}</Text>
+                                      </div>
+                                    </SimpleGrid>
+
+                                    {item.errorSources.length > 0 && (
+                                      <div>
+                                        <Text size="xs" c="dimmed" mb="xs">可能的误差来源：</Text>
+                                        <Stack gap={4}>
+                                          {item.errorSources.map((source, sIdx) => (
+                                            <Group key={sIdx} gap="xs" align="flex-start">
+                                              <AlertTriangle size={14} color="#F59E0B" style={{ marginTop: 2 }} />
+                                              <Text size="sm">{source}</Text>
+                                            </Group>
+                                          ))}
+                                        </Stack>
+                                      </div>
+                                    )}
+
+                                    <Progress
+                                      value={Math.min(100, item.errorPercentage)}
+                                      color={item.isWithinRange ? 'green' : item.errorPercentage > 20 ? 'red' : 'yellow'}
+                                      size="sm"
+                                    />
+                                  </Stack>
+                                </Card>
+                              ))}
+                            </Stack>
+                          </Paper>
+
+                          <Paper withBorder radius="md" p="md">
+                            <Group gap="sm" mb="md">
+                              <CheckCircle2 size={20} color="#10B981" />
+                              <Text fw={700} size="lg">操作规范性检查</Text>
+                            </Group>
+                            <Stack gap="sm">
+                              {analysis.operationChecks.map((check) => (
+                                <Card key={check.id} withBorder radius="sm" p="md" style={{
+                                  borderLeft: `4px solid ${check.isNormal ? '#10B981' : '#EF4444'}`
+                                }}>
+                                  <Group justify="space-between" align="flex-start">
+                                    <Group gap="sm" align="flex-start">
+                                      {check.isNormal ? (
+                                        <CheckCircle2 size={18} color="#10B981" style={{ marginTop: 2 }} />
+                                      ) : (
+                                        <XCircle size={18} color="#EF4444" style={{ marginTop: 2 }} />
+                                      )}
+                                      <div>
+                                        <Text fw={600}>{check.title}</Text>
+                                        <Text size="sm" c="dimmed">{check.description}</Text>
+                                      </div>
+                                    </Group>
+                                    <Badge color={check.isNormal ? 'green' : 'red'} variant="light">
+                                      {check.isNormal ? '规范' : '不规范'}
+                                    </Badge>
+                                  </Group>
+                                  {!check.isNormal && check.suggestion && (
+                                    <Text size="sm" c="orange" mt="xs">
+                                      💡 建议：{check.suggestion}
+                                    </Text>
+                                  )}
+                                </Card>
+                              ))}
+                            </Stack>
+                          </Paper>
+
+                          <Paper withBorder radius="md" p="md" style={{ background: '#FFFBEB' }}>
+                            <Group gap="sm" mb="md">
+                              <Lightbulb size={20} color="#F59E0B" />
+                              <Text fw={700} size="lg">改进建议</Text>
+                            </Group>
+                            <Stack gap="sm">
+                              {analysis.improvements.map((improvement, idx) => (
+                                <Group key={idx} gap="sm" align="flex-start">
+                                  <Text fw={600} c="#F59E0B">{idx + 1}.</Text>
+                                  <Text size="sm">{improvement}</Text>
+                                </Group>
+                              ))}
+                            </Stack>
+                          </Paper>
+                        </Stack>
+                      ) : (
+                        <Text c="dimmed">暂无分析数据</Text>
                       )}
                     </Tabs.Panel>
                   </Tabs>
